@@ -89,7 +89,7 @@ For a deeper breakdown of modules, data flow, and locking strategy, see [ARCHITE
 ## Project Structure (Planned)
 
 ```
-plataforma-agendamentos/
+real-time-scheduling-platform/
 ├── apps/
 │   ├── web/                  # Next.js frontend (App Router)
 │   └── api/                  # Fastify backend
@@ -133,8 +133,8 @@ pnpm is faster and more disk-efficient in large monorepos, but **you do not need
 ### 1. Clone and configure environment
 
 ```bash
-git clone https://github.com/<your-org>/plataforma-agendamentos.git
-cd plataforma-agendamentos
+git clone https://github.com/BrenoNery/real-time-scheduling-platform.git
+cd real-time-scheduling-platform
 cp .env.example .env
 ```
 
@@ -142,7 +142,7 @@ Update `.env` with your DBngin connection strings:
 
 ```bash
 # .env.example (adjust ports/names to match your DBngin setup)
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/plataforma_agendamentos"
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/scheduling_platform"
 REDIS_URL="redis://localhost:6379"
 SMTP_HOST="localhost"
 SMTP_PORT="1025"
@@ -234,7 +234,7 @@ PostgreSQL and Redis run natively via **DBngin** for fast startup and easy inspe
 
 ### Project Management (Linear)
 
-All development tasks are tracked as Issues in the Linear project **[Plataforma de Agendamentos em Tempo Real](https://linear.app/breno-nery)**. Issues are categorized by context prefix:
+All development tasks are tracked as Issues in the Linear project **[Real-Time Scheduling Platform](https://linear.app/breno-nery/project/real-time-scheduling-platform-8335a3f3ee49)**. Issues are categorized by context prefix:
 
 | Prefix | Domain |
 |---|---|

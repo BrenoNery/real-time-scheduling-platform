@@ -1,6 +1,6 @@
 # Architecture — Real-Time Scheduling Platform
 
-This document describes the system architecture, data model, concurrency strategy, and messaging pipeline for the **Plataforma de Agendamentos em Tempo Real** project.
+This document describes the system architecture, data model, concurrency strategy, and messaging pipeline for the **Real-Time Scheduling Platform** project.
 
 ---
 
@@ -497,7 +497,35 @@ All API errors follow a consistent envelope:
 
 ## 10. Initial Linear Issues
 
-The following Issues should be created in the Linear project **[Plataforma de Agendamentos em Tempo Real](https://linear.app/breno-nery/project/plataforma-de-agendamentos-em-tempo-real-8335a3f3ee49)** upon documentation approval.
+The following Issues live in the Linear project **[Real-Time Scheduling Platform](https://linear.app/breno-nery/project/real-time-scheduling-platform-8335a3f3ee49)**. Development is organized into **Milestones (phases)** to track progress across the roadmap.
+
+> **Note on numbering:** The Linear team already had prior issues, so live identifiers start at **BRE-33**. The `BRE-1 … BRE-12` labels below are documentation references; the mapping to live Linear IDs is in the phase table.
+
+### Development Phases (Milestones)
+
+| Milestone | Target | Issues (Linear ID) | Goal |
+|---|---|---|---|
+| **Phase 1 — Foundation & Data** | 2026-07-26 | BRE-33, BRE-34, BRE-35, BRE-44 | Monorepo, infra, Prisma schema, seed data |
+| **Phase 2 — Backend Core & Concurrency** | 2026-08-09 | BRE-36, BRE-37, BRE-41 | Fastify API, locking PoC, booking CRUD |
+| **Phase 3 — Frontend & SSR Dashboard** | 2026-08-23 | BRE-38, BRE-40, BRE-43 | Next.js, SSR dashboard, Server Actions |
+| **Phase 4 — Notifications & Delivery** | 2026-09-06 | BRE-45, BRE-42 | BullMQ email worker, CI pipeline |
+
+### Doc → Linear ID Mapping
+
+| Doc ref | Linear ID | Milestone |
+|---|---|---|
+| BRE-1 | BRE-33 | Phase 1 |
+| BRE-2 | BRE-34 | Phase 1 |
+| BRE-3 | BRE-35 | Phase 1 |
+| BRE-4 | BRE-36 | Phase 2 |
+| BRE-5 | BRE-37 | Phase 2 |
+| BRE-6 | BRE-38 | Phase 3 |
+| BRE-7 | BRE-40 | Phase 3 |
+| BRE-8 | BRE-45 | Phase 4 |
+| BRE-9 | BRE-41 | Phase 2 |
+| BRE-10 | BRE-43 | Phase 3 |
+| BRE-11 | BRE-44 | Phase 1 |
+| BRE-12 | BRE-42 | Phase 4 |
 
 ---
 

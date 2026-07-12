@@ -41,13 +41,24 @@ Identify gaps between documented target state and current implementation.
 
 ### 3. Align with Linear
 
-Query the Linear project **"Plataforma de Agendamentos em Tempo Real"**:
+Query the Linear project **"Real-Time Scheduling Platform"**:
 
 1. List issues for the project (team: Breno Nery)
 2. Check status: Backlog, In Progress, Done, Cancelled
-3. Respect dependency order from ARCHITECTURE.md Section 10
+3. Identify the **current active Milestone (phase)** — the earliest phase with unfinished issues
+4. Respect dependency order (`blockedBy`) and prefer issues within the active phase
+5. Report phase progress (e.g. "Phase 1 — 2/4 issues done")
 
-Use Linear MCP tools: `list_issues`, `get_issue`.
+Use Linear MCP tools: `list_issues`, `get_issue`, `list_milestones`, `get_milestone`.
+
+**Milestones (phases):**
+
+| Phase | Issues (Linear ID) |
+|---|---|
+| Phase 1 — Foundation & Data | BRE-33, BRE-34, BRE-35, BRE-44 |
+| Phase 2 — Backend Core & Concurrency | BRE-36, BRE-37, BRE-41 |
+| Phase 3 — Frontend & SSR Dashboard | BRE-38, BRE-40, BRE-43 |
+| Phase 4 — Notifications & Delivery | BRE-45, BRE-42 |
 
 ### 4. Identify Next Priority Task
 
@@ -57,11 +68,16 @@ Select the highest-priority issue that:
 - Has all blocking dependencies completed (or is unblocked)
 - Is the logical next step in the execution order
 
-Execution order reference (from ARCHITECTURE.md):
+Execution order reference (live Linear IDs, from ARCHITECTURE.md):
 
 ```
-BRE-1 → BRE-2 → BRE-3 → (BRE-4 ∥ BRE-6) → BRE-5 → BRE-7 → BRE-8 → BRE-9 → BRE-10 → BRE-11 → BRE-12
+Phase 1: BRE-33 → BRE-34 → BRE-35 → BRE-44
+Phase 2: BRE-36 → BRE-37 → BRE-41
+Phase 3: BRE-38 → BRE-40 → BRE-43
+Phase 4: BRE-45 → BRE-42
 ```
+
+Complete the active phase before pulling work from a later phase (unless a later-phase issue is fully unblocked and the user explicitly wants to parallelize).
 
 ### 5. Generate Execution Artifacts
 
@@ -72,6 +88,7 @@ Respond with this exact structure:
 ## Next Task: [Issue Title]
 
 **Linear Issue:** [BRE-X] (link if available)  
+**Milestone:** [Phase N — Name] ([X/Y issues done])  
 **Priority:** [Urgent/High/Medium/Low]  
 **Context:** [DevOps/Backend/Frontend/Database]
 
