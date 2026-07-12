@@ -22,21 +22,23 @@ This document describes the system architecture, data model, concurrency strateg
 ## 1. System Context
 
 ```mermaid
-C4Context
-    title System Context — Real-Time Scheduling Platform
+flowchart TB
+    subgraph Users["Users"]
+        Provider["Service Provider"]
+        Client["Client"]
+    end
 
-    Person(provider, "Service Provider", "Manages availability and views bookings")
-    Person(client, "Client", "Books available time slots")
+    Platform["Scheduling Platform<br/>(Next.js + Fastify + PostgreSQL)"]
 
-    System(platform, "Scheduling Platform", "Manages slots, bookings, and notifications")
+    subgraph External["External Systems"]
+        Email["Email Provider<br/>(SMTP / Resend)"]
+        RedisExt["Redis<br/>(BullMQ Job Broker)"]
+    end
 
-    System_Ext(email, "Email Provider", "SMTP / Resend API")
-    System_Ext(redis, "Redis", "Job broker for BullMQ")
-
-    Rel(provider, platform, "Manages schedule via dashboard")
-    Rel(client, platform, "Books appointments")
-    Rel(platform, email, "Sends confirmation emails")
-    Rel(platform, redis, "Enqueues notification jobs")
+    Provider -->|"Manages schedule via dashboard"| Platform
+    Client -->|"Books appointments"| Platform
+    Platform -->|"Sends confirmation emails"| Email
+    Platform -->|"Enqueues notification jobs"| RedisExt
 ```
 
 ### Actors
@@ -402,17 +404,25 @@ See [Section 5 — Concurrency & Locking Strategy](#5-concurrency--locking-strat
 
 ## 8. Deployment Topology
 
-### Local Development (Docker Compose)
+### Local Development (DBngin + Docker)
+
+The default local setup runs **PostgreSQL and Redis via [DBngin](https://dbngin.com/)** (native macOS services) and **Mailpit via Docker** (email capture only). Application processes run directly on the host with Node.js.
 
 ```mermaid
 flowchart TB
-    subgraph DockerCompose["docker-compose.yml"]
+    subgraph Host["Host Machine (macOS)"]
         Web["web :3000"]
         API["api :3333"]
         Worker["worker"]
-        PG["postgres :5432"]
-        Redis["redis :6379"]
-        Mailpit["mailpit :8025"]
+    end
+
+    subgraph DBngin["DBngin"]
+        PG["PostgreSQL :5432"]
+        Redis["Redis :6379"]
+    end
+
+    subgraph Docker["Docker"]
+        Mailpit["Mailpit :8025"]
     end
 
     Web --> API
@@ -422,6 +432,8 @@ flowchart TB
     Worker --> Redis
     Worker --> Mailpit
 ```
+
+> **Alternative:** A full Docker Compose profile (PostgreSQL + Redis + Mailpit) remains available for contributors who prefer an all-container workflow and for CI integration tests.
 
 ### Production (Target)
 
@@ -495,14 +507,14 @@ The following Issues should be created in the Linear project **[Plataforma de Ag
 **Estimate:** 3 points
 
 **Description:**  
-Initialize the monorepo structure with pnpm workspaces, TypeScript project references, ESLint, Prettier, and shared tsconfig. Create the `apps/web`, `apps/api`, `packages/database`, and `packages/shared` directories with minimal boilerplate.
+Initialize the monorepo structure with npm workspaces, TypeScript project references, ESLint, Prettier, and shared tsconfig. Create the `apps/web`, `apps/api`, `packages/database`, and `packages/shared` directories with minimal boilerplate.
 
 **Acceptance Criteria:**
-- [ ] Root `package.json` with pnpm workspace configuration
+- [ ] Root `package.json` with npm workspace configuration
 - [ ] Shared `tsconfig.base.json` extended by all packages
 - [ ] ESLint + Prettier configured at root with consistent rules
 - [ ] Each package has its own `package.json`, `tsconfig.json`, and builds independently
-- [ ] `pnpm install` succeeds with zero errors
+- [ ] `npm install` succeeds with zero errors
 - [ ] README "How to Run" prerequisites are satisfied
 
 ---
@@ -514,14 +526,14 @@ Initialize the monorepo structure with pnpm workspaces, TypeScript project refer
 **Blocked by:** BRE-1
 
 **Description:**  
-Create `docker/docker-compose.yml` with PostgreSQL 16, Redis 7, and Mailpit services. Provide `.env.example` with all required environment variables.
+Create `docker/docker-compose.yml` with **Mailpit** as the default service. PostgreSQL and Redis are expected to run locally via **DBngin**; document their connection strings in `.env.example`. Include an optional Docker Compose profile (`full`) for contributors who prefer containerized PostgreSQL and Redis.
 
 **Acceptance Criteria:**
-- [ ] `docker compose up -d postgres redis mailpit` starts all services
-- [ ] PostgreSQL accessible at `localhost:5432` with health check
-- [ ] Redis accessible at `localhost:6379`
-- [ ] Mailpit UI accessible at `http://localhost:8025`
-- [ ] `.env.example` documents all variables with descriptions
+- [ ] `docker compose up -d mailpit` starts Mailpit successfully
+- [ ] Mailpit UI accessible at `http://localhost:8025`, SMTP at `localhost:1025`
+- [ ] `.env.example` documents DBngin defaults (`DATABASE_URL`, `REDIS_URL`) and Mailpit SMTP settings
+- [ ] Optional `full` profile starts PostgreSQL and Redis containers for CI/alternative setups
+- [ ] README documents DBngin as the primary local workflow
 
 ---
 
@@ -538,7 +550,7 @@ Define the Prisma schema for User, Service, TimeSlot, Booking, and NotificationJ
 - [ ] Prisma schema matches the ER diagram in this document
 - [ ] Unique constraint on `Booking.slot_id`
 - [ ] Composite index on `(service_id, starts_at)` for TimeSlot
-- [ ] `pnpm db:migrate` applies migration successfully against Docker PostgreSQL
+- [ ] `npm run db:migrate --workspace=@repo/database` applies migration successfully against DBngin PostgreSQL
 - [ ] Prisma client importable from `@repo/database`
 
 ---
@@ -553,7 +565,7 @@ Define the Prisma schema for User, Service, TimeSlot, Booking, and NotificationJ
 Bootstrap the Fastify application with TypeScript, Prisma plugin, structured logging (pino), and a `/health` endpoint that verifies PostgreSQL connectivity.
 
 **Acceptance Criteria:**
-- [ ] Fastify starts on port 3333 via `pnpm dev`
+- [ ] Fastify starts on port 3333 via `npm run dev --workspace=@repo/api`
 - [ ] `GET /health` returns `{ status: "ok", db: "connected" }`
 - [ ] Prisma client available via Fastify decoration
 - [ ] Graceful shutdown on SIGTERM
@@ -623,7 +635,7 @@ Set up BullMQ with Redis. Create a `notifications` queue, a worker process, and 
 
 **Acceptance Criteria:**
 - [ ] `NotificationQueue` enqueues jobs after successful booking
-- [ ] Worker process runs independently via `pnpm worker:dev`
+- [ ] Worker process runs independently via `npm run worker:dev --workspace=@repo/api`
 - [ ] Confirmation email appears in Mailpit inbox
 - [ ] 3 retries with exponential backoff configured
 - [ ] Job ID prevents duplicate emails for same booking
@@ -675,7 +687,7 @@ Create Server Actions for booking creation and cancellation that call the Fastif
 Create a seed script that populates the database with a demo provider, two services, 20+ time slots, and sample bookings for dashboard development and demos.
 
 **Acceptance Criteria:**
-- [ ] `pnpm db:seed` populates demo data without errors
+- [ ] `npm run db:seed --workspace=@repo/database` populates demo data without errors
 - [ ] At least 1 provider, 2 services, 20 slots (mix of AVAILABLE and BOOKED)
 - [ ] Seed is idempotent (safe to run multiple times)
 

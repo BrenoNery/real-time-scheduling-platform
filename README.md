@@ -27,7 +27,7 @@ This platform allows service providers to manage time slots and lets clients boo
 | **Backend** | Node.js + TypeScript + **Fastify** | High-performance HTTP server with first-class TypeScript support and a lightweight plugin ecosystem |
 | **Database** | PostgreSQL 16 + Prisma ORM | ACID transactions, native locking primitives, type-safe queries |
 | **Queue** | BullMQ + Redis 7 | Reliable background job processing with retries and observability |
-| **Infrastructure** | Docker Compose | Reproducible local and CI environments |
+| **Infrastructure** | Docker Compose (Mailpit) + DBngin (PostgreSQL, Redis) | Native DB services for daily dev; Docker only where needed |
 
 > **Why Fastify over NestJS?** Fastify offers lower overhead and explicit control over request lifecycle — ideal for demonstrating transaction boundaries and locking semantics. NestJS remains a viable alternative if the project grows into a modular monolith.
 
@@ -97,7 +97,7 @@ plataforma-agendamentos/
 │   ├── database/             # Prisma schema, migrations, client
 │   └── shared/               # Shared types, validators (Zod)
 ├── docker/
-│   └── docker-compose.yml    # PostgreSQL, Redis, Mailpit
+│   └── docker-compose.yml    # Mailpit (default); optional full profile for CI
 ├── README.md
 ├── ARCHITECTURE.md
 └── .cursor/
@@ -109,14 +109,26 @@ plataforma-agendamentos/
 
 ## How to Run
 
-> **Note:** Application services are not yet implemented. The commands below describe the target Docker Compose workflow once scaffolding is complete.
+> **Note:** Application services are not yet implemented. The commands below describe the target workflow once scaffolding is complete.
 
 ### Prerequisites
 
-- [Docker](https://docs.docker.com/get-docker/) ≥ 24
-- [Docker Compose](https://docs.docker.com/compose/) ≥ 2.20
-- [Node.js](https://nodejs.org/) ≥ 20 (for local development outside containers)
-- [pnpm](https://pnpm.io/) ≥ 9 (package manager)
+- [Node.js](https://nodejs.org/) ≥ 20 with **npm** ≥ 10 (included with Node.js)
+- [DBngin](https://dbngin.com/) with **PostgreSQL** and **Redis** instances running
+- [Docker](https://docs.docker.com/get-docker/) ≥ 24 (Mailpit only)
+
+#### Package manager: npm vs pnpm
+
+**npm and pnpm are not the same tool.** Both manage dependencies, but this project uses **npm workspaces** (built into npm 7+) as the default — no extra install required if you already have Node.js.
+
+| | npm (default) | pnpm (optional) |
+|---|---|---|
+| Install | Included with Node.js | `brew install pnpm` |
+| Monorepo support | npm workspaces | pnpm workspaces |
+| Install deps | `npm install` | `pnpm install` |
+| Run script in package | `npm run dev --workspace=@repo/api` | `pnpm --filter @repo/api dev` |
+
+pnpm is faster and more disk-efficient in large monorepos, but **you do not need to install it** unless you prefer it. All documentation uses npm commands.
 
 ### 1. Clone and configure environment
 
@@ -126,36 +138,52 @@ cd plataforma-agendamentos
 cp .env.example .env
 ```
 
-### 2. Start infrastructure services
+Update `.env` with your DBngin connection strings:
 
 ```bash
-docker compose -f docker/docker-compose.yml up -d postgres redis mailpit
+# .env.example (adjust ports/names to match your DBngin setup)
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/plataforma_agendamentos"
+REDIS_URL="redis://localhost:6379"
+SMTP_HOST="localhost"
+SMTP_PORT="1025"
 ```
 
-| Service | URL | Purpose |
-|---|---|---|
-| PostgreSQL | `localhost:5432` | Primary database |
-| Redis | `localhost:6379` | BullMQ broker |
-| Mailpit | `http://localhost:8025` | Local email capture (dev) |
+### 2. Start infrastructure services
+
+**DBngin (PostgreSQL + Redis)** — start both instances in the DBngin app before running the application.
+
+**Mailpit (Docker)** — email capture for development:
+
+```bash
+docker compose -f docker/docker-compose.yml up -d mailpit
+```
+
+| Service | Source | URL | Purpose |
+|---|---|---|---|
+| PostgreSQL | DBngin | `localhost:5432` | Primary database |
+| Redis | DBngin | `localhost:6379` | BullMQ broker |
+| Mailpit | Docker | `http://localhost:8025` | Local email capture (dev) |
+
+> **Alternative:** To run PostgreSQL and Redis via Docker instead of DBngin (e.g. CI or contributors without DBngin), use the optional `full` profile: `docker compose -f docker/docker-compose.yml --profile full up -d`
 
 ### 3. Run database migrations
 
 ```bash
-pnpm --filter @repo/database db:migrate
-pnpm --filter @repo/database db:seed
+npm run db:migrate --workspace=@repo/database
+npm run db:seed --workspace=@repo/database
 ```
 
 ### 4. Start application services
 
 ```bash
 # Terminal 1 — API
-pnpm --filter @repo/api dev
+npm run dev --workspace=@repo/api
 
 # Terminal 2 — Web
-pnpm --filter @repo/web dev
+npm run dev --workspace=@repo/web
 
 # Terminal 3 — Background worker
-pnpm --filter @repo/api worker:dev
+npm run worker:dev --workspace=@repo/api
 ```
 
 ### 5. Access the application
@@ -166,19 +194,19 @@ pnpm --filter @repo/api worker:dev
 | API (Health) | http://localhost:3333/health |
 | Mailpit (Dev inbox) | http://localhost:8025 |
 
-### Full stack via Docker Compose (production-like)
+### Full stack via Docker Compose (CI / alternative setup)
 
 ```bash
-docker compose -f docker/docker-compose.yml up --build
+docker compose -f docker/docker-compose.yml --profile full up --build
 ```
 
 ---
 
 ## Engineering Decisions
 
-### 1. Monorepo with pnpm workspaces
+### 1. Monorepo with npm workspaces
 
-A single repository with `apps/` and `packages/` keeps the Prisma client, shared Zod schemas, and TypeScript types in sync between frontend and backend without publishing internal packages.
+A single repository with `apps/` and `packages/` keeps the Prisma client, shared Zod schemas, and TypeScript types in sync between frontend and backend without publishing internal packages. **npm workspaces** is used by default (no extra tooling required); pnpm remains a supported alternative.
 
 ### 2. SSR via Next.js Server Components
 
@@ -196,9 +224,9 @@ Email delivery is slow and unreliable compared to HTTP. Enqueuing a confirmation
 
 Fastify's schema-based validation (via `@fastify/type-provider-typebox` or Zod) and hook system make it straightforward to enforce transaction boundaries per route. Its performance profile is well-suited for a portfolio project that needs to demonstrate low-latency booking under contention.
 
-### 6. Docker Compose for reproducibility
+### 6. Hybrid local infrastructure (DBngin + Docker)
 
-All infrastructure dependencies (PostgreSQL, Redis, Mailpit) are containerized. A new contributor can run the full stack with two commands, and CI pipelines can spin up identical environments for integration tests.
+PostgreSQL and Redis run natively via **DBngin** for fast startup and easy inspection during daily development. Only **Mailpit** runs in Docker, since it has no native macOS equivalent and is lightweight to containerize. A Docker Compose `full` profile remains available for CI pipelines and contributors who prefer an all-container setup.
 
 ---
 
