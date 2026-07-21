@@ -158,6 +158,8 @@ SMTP_PORT="1025"
 docker compose -f docker/docker-compose.yml up -d mailpit
 ```
 
+> **Port conflict:** If Mailpit is already running on `localhost:1025` / `8025` (e.g. from another Docker stack), configure `SMTP_HOST` and `SMTP_PORT` in `.env` to match that instance and skip `docker compose ... mailpit` to avoid binding errors.
+
 | Service | Source | URL | Purpose |
 |---|---|---|---|
 | PostgreSQL | DBngin | `localhost:5432` | Primary database |

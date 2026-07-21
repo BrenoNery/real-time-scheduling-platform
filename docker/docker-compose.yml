@@ -1,0 +1,57 @@
+# Local infrastructure for the Real-Time Scheduling Platform.
+#
+# Default workflow: PostgreSQL and Redis via DBngin; Mailpit via Docker.
+# Optional `full` profile adds containerized PostgreSQL and Redis for CI or
+# contributors without DBngin.
+
+services:
+  # Email capture for development — always available without a profile.
+  mailpit:
+    image: axllent/mailpit:v1.22.3
+    container_name: scheduling-mailpit
+    ports:
+      - "8025:8025" # Web UI
+      - "1025:1025" # SMTP
+    restart: unless-stopped
+
+  # Optional PostgreSQL — enable with: --profile full
+  postgres:
+    profiles:
+      - full
+    image: postgres:16-alpine
+    container_name: scheduling-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: scheduling_platform
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Optional Redis — enable with: --profile full
+  redis:
+    profiles:
+      - full
+    image: redis:7-alpine
+    container_name: scheduling-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+  redis_data:
