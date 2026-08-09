@@ -1,0 +1,111 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  PROVIDER
+  CLIENT
+  ADMIN
+}
+
+enum SlotStatus {
+  AVAILABLE
+  BOOKED
+  BLOCKED
+}
+
+enum BookingStatus {
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+enum NotificationType {
+  CONFIRMATION
+  REMINDER
+  CANCELLATION
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+model User {
+  id        String   @id @default(uuid()) @db.Uuid
+  email     String   @unique
+  name      String
+  role      Role
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  services Service[]
+  bookings Booking[]
+
+  @@map("users")
+}
+
+model Service {
+  id              String   @id @default(uuid()) @db.Uuid
+  providerId      String   @map("provider_id") @db.Uuid
+  name            String
+  description     String
+  durationMinutes Int      @map("duration_minutes")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  provider  User       @relation(fields: [providerId], references: [id])
+  timeSlots TimeSlot[]
+
+  @@map("services")
+}
+
+model TimeSlot {
+  id        String     @id @default(uuid()) @db.Uuid
+  serviceId String     @map("service_id") @db.Uuid
+  startsAt  DateTime   @map("starts_at")
+  endsAt    DateTime   @map("ends_at")
+  status    SlotStatus
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+
+  service Service  @relation(fields: [serviceId], references: [id])
+  booking Booking?
+
+  @@index([serviceId, startsAt])
+  @@map("time_slots")
+}
+
+model Booking {
+  id          String        @id @default(uuid()) @db.Uuid
+  slotId      String        @unique @map("slot_id") @db.Uuid
+  clientId    String        @map("client_id") @db.Uuid
+  status      BookingStatus
+  bookedAt    DateTime      @default(now()) @map("booked_at")
+  cancelledAt DateTime?     @map("cancelled_at")
+
+  slot              TimeSlot          @relation(fields: [slotId], references: [id])
+  client            User              @relation(fields: [clientId], references: [id])
+  notificationJobs  NotificationJob[]
+
+  @@map("bookings")
+}
+
+model NotificationJob {
+  id        String             @id @default(uuid()) @db.Uuid
+  bookingId String             @map("booking_id") @db.Uuid
+  type      NotificationType
+  status    NotificationStatus
+  payload   Json
+  createdAt DateTime           @default(now()) @map("created_at")
+  sentAt    DateTime?          @map("sent_at")
+
+  booking Booking @relation(fields: [bookingId], references: [id])
+
+  @@map("notification_jobs")
+}

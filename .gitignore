@@ -29,9 +29,6 @@ coverage/
 # TypeScript
 *.tsbuildinfo
 
-# Prisma (future)
-packages/database/prisma/migrations/
-
 # Misc
 .turbo/
 .vercel/
