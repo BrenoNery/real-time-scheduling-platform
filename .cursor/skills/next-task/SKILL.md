@@ -5,12 +5,20 @@ description: >-
   user asks exactly "Qual a próxima tarefa?" or "What's the next task?" to
   analyze code, docs, and Linear issues and recommend the next priority task
   with ready-to-use implementation prompts and model recommendations (primary
-  plus, when needed, a Cursor-native Composer/Grok alternative).
+  plus, when needed, a Cursor-native Composer/Grok alternative), including
+  recommended effort level. Always reply to the user in Brazilian Portuguese
+  (pt-BR).
 ---
 
 # Next Task Copilot
 
 When the user asks exactly **"Qual a próxima tarefa?"** or **"What's the next task?"**, execute this workflow. Do not give a generic answer.
+
+## Language (mandatory)
+
+- **All user-facing output from this skill MUST be in Brazilian Portuguese (pt-BR)** — headings, explanations, tables, justifications, and notes.
+- Implementation prompts pasted into a new Cursor chat may remain in **English** (codebase, README, and ARCHITECTURE are in English), unless the user explicitly asks for Portuguese prompts.
+- Documentation and commit messages produced by implementation work must remain in **English**.
 
 ## Mandatory Steps
 
@@ -48,7 +56,7 @@ Query the Linear project **"Real-Time Scheduling Platform"**:
 2. Check status: Backlog, In Progress, Done, Cancelled
 3. Identify the **current active Milestone (phase)** — the earliest phase with unfinished issues
 4. Respect dependency order (`blockedBy`) and prefer issues within the active phase
-5. Report phase progress (e.g. "Phase 1 — 2/4 issues done")
+5. Report phase progress (e.g. "Fase 1 — 2/4 issues concluídas")
 
 Use Linear MCP tools: `list_issues`, `get_issue`, `list_milestones`, `get_milestone`.
 
@@ -82,30 +90,30 @@ Complete the active phase before pulling work from a later phase (unless a later
 
 ### 5. Generate Execution Artifacts
 
-Respond with this exact structure:
+Respond in **pt-BR** with this exact structure:
 
 ---
 
-## Next Task: [Issue Title]
+## Próxima tarefa: [Issue Title]
 
-**Linear Issue:** [BRE-X] (link if available)  
-**Milestone:** [Phase N — Name] ([X/Y issues done])  
-**Priority:** [Urgent/High/Medium/Low]  
-**Context:** [DevOps/Backend/Frontend/Database]
+**Issue no Linear:** [BRE-X] (link if available)  
+**Milestone:** [Fase N — Nome] ([X/Y issues concluídas])  
+**Prioridade:** [Urgent/High/Medium/Low]  
+**Contexto:** [DevOps/Backend/Frontend/Database]
 
-### Why This Task
+### Por que esta tarefa
 
-[2-3 sentences explaining why this is the logical next step based on code analysis, docs, and Linear status]
+[2-3 frases em pt-BR explicando por que este é o próximo passo lógico com base em código, docs e Linear]
 
-### Current State vs Target
+### Estado atual vs alvo
 
-| Area | Status |
+| Área | Status |
 |---|---|
-| [Component] | [Implemented / Partial / Not started] |
+| [Componente] | [Implementado / Parcial / Não iniciado] |
 
-### Implementation Prompt (Primary)
+### Prompt de implementação (primário)
 
-Copy and paste the block below into a new Cursor chat with the **primary** model:
+Copie e cole o bloco abaixo em um novo chat do Cursor com o modelo **primário** e o nível de esforço indicado:
 
 ```
 [Full, detailed prompt instructing the agent to implement the task.
@@ -114,32 +122,34 @@ tech constraints from README/ARCHITECTURE, and explicit "do not"
 boundaries if needed.]
 ```
 
-### Recommended Model (Primary)
+### Modelo recomendado (primário)
 
-**Model:** [model name]  
-**Justification:** [1-2 sentences on why this model fits the task complexity]
+**Modelo:** [nome do modelo]  
+**Nível de esforço:** [Low / Medium / High / Extra High / N/A]  
+**Justificativa:** [1-2 frases em pt-BR sobre por que o modelo e o esforço cabem na complexidade da tarefa]
 
-### Alternative (Cursor-native: Composer or Grok)
+### Alternativa (nativa do Cursor: Composer ou Grok)
 
-**Cursor-native models:** Composer (e.g. Composer 2.5 Fast) and Grok (e.g. Grok 4.5).
+**Modelos nativos do Cursor:** Composer (ex.: Composer 2.5 Fast) e Grok (ex.: Grok 4.5).
 
-Apply the rule below:
+Aplique a regra abaixo:
 
-1. **If the primary model is already Cursor-native** (Composer or Grok):  
-   Do **not** generate an alternative model or alternative prompt. State clearly that an alternative is unnecessary because the primary recommendation is already a Cursor-proprietary model.
+1. **Se o modelo primário já for nativo do Cursor** (Composer ou Grok):  
+   **Não** gere modelo alternativo nem prompt alternativo. Deixe claro, em pt-BR, que a alternativa é desnecessária porque a recomendação primária já é um modelo proprietário do Cursor. Ainda assim, indique o **nível de esforço** do modelo primário.
 
-2. **If the primary model is not Cursor-native** (e.g. Claude, GPT, or other third-party models):  
-   Always recommend **one** additional Cursor-native model — choose **Composer** or **Grok** using the Alternative Model Selection Guide — and generate a **second, rewritten prompt** tailored to that model. The alternative prompt must aim for the **same function and the same quality** as the primary path.
+2. **Se o modelo primário não for nativo do Cursor** (ex.: Claude, GPT ou outros):  
+   Sempre recomende **um** modelo nativo adicional — escolha **Composer** ou **Grok** pelo Alternative Model Selection Guide — e gere um **segundo prompt reescrito** para esse modelo. O prompt alternativo deve mirar a **mesma função e a mesma qualidade** do caminho primário. Inclua também o **nível de esforço** recomendado para o modelo alternativo.
 
-When case 2 applies, include:
+Quando o caso 2 se aplicar, inclua:
 
-**Alternative Model:** [Composer … or Grok …]  
-**Why this alternative:** [1-2 sentences: which Cursor-native strengths cover the gaps vs. the primary model]  
-**How the prompt was adapted:** [1-2 sentences: what you changed in the alternative prompt so Composer/Grok can match primary quality — e.g. more explicit step order, checklists, file-by-file plan, edge-case enumeration, verification commands]
+**Modelo alternativo:** [Composer … ou Grok …]  
+**Nível de esforço:** [Low / Medium / High / Extra High / N/A]  
+**Por que esta alternativa:** [1-2 frases em pt-BR]  
+**Como o prompt foi adaptado:** [1-2 frases em pt-BR sobre o que mudou para Composer/Grok atingir qualidade equivalente]
 
-#### Alternative Implementation Prompt
+#### Prompt de implementação (alternativo)
 
-Copy and paste the block below into a new Cursor chat with the **alternative** model:
+Copie e cole o bloco abaixo em um novo chat do Cursor com o modelo **alternativo** e o nível de esforço indicado:
 
 ```
 [Rewritten prompt optimized for the chosen Composer or Grok model.
@@ -150,37 +160,52 @@ clearer sequential steps, explicit verification criteria, concrete
 file paths, and enumerated edge cases. Do not dilute the task.]
 ```
 
-When case 1 applies, replace the entire "Alternative (Cursor-native…)" subsection with a short note such as:
+Quando o caso 1 se aplicar, substitua toda a subseção "Alternativa (nativa do Cursor…)" por uma nota curta em pt-BR, por exemplo:
 
-> **Alternative:** Not generated — the primary model is already Cursor-native ([Composer/Grok name]), so a second Composer/Grok path is unnecessary.
+> **Alternativa:** Não gerada — o modelo primário já é nativo do Cursor ([nome Composer/Grok]), então um segundo caminho Composer/Grok é desnecessário.  
+> **Nível de esforço do primário:** [Low / Medium / High / Extra High / N/A]
 
 ---
 
+## Effort Levels
+
+Use the Cursor effort dial when the model supports it. Recommend one of:
+
+| Nível | Quando usar |
+|---|---|
+| **Low** | Tarefas curtas, baixa ambiguidade, mudanças locais |
+| **Medium** | Escopo moderado, alguns arquivos, decisões limitadas |
+| **High** | Raciocínio profundo, concorrência, modelagem, refactors multiarquivo |
+| **Extra High** | Problemas difíceis de longo curso, muitos edge cases, alto risco |
+| **N/A** | Modelo sem dial de esforço (ex.: Composer 2.5 Fast) — use a variante recomendada do modelo |
+
+Always state the effort level next to every model recommendation (primary and, when present, alternative).
+
 ## Model Selection Guide
 
-| Task Type | Recommended Model | Rationale |
-|---|---|---|
-| Scaffolding, config, Docker, CI | **Composer 2.5 Fast** | Fast iteration on boilerplate with low ambiguity |
-| Database schema, Prisma, migrations | **Claude Sonnet 4.6 Thinking** | Strong reasoning for data modeling and constraints |
-| Concurrency / locking logic | **Claude Opus 4.8 Thinking** | Deep reasoning for race conditions and transaction boundaries |
-| Next.js SSR, Server Components, UI | **Claude Sonnet 4.6 Thinking** | Excellent React/Next.js patterns and component architecture |
-| BullMQ, workers, async pipelines | **GPT-5.3 Codex** | Strong systems programming and queue semantics |
-| Integration tests, E2E | **Claude Sonnet 4.6 Thinking** | Good at test design and edge case coverage |
-| Complex multi-file refactors | **Claude Opus 4.8 Thinking** | Best for cross-cutting changes with many dependencies |
+| Task Type | Recommended Model | Effort | Rationale |
+|---|---|---|---|
+| Scaffolding, config, Docker, CI | **Composer 2.5 Fast** | **N/A** | Fast iteration on boilerplate with low ambiguity |
+| Database schema, Prisma, migrations | **Claude Sonnet 4.6 Thinking** | **High** | Strong reasoning for data modeling and constraints |
+| Concurrency / locking logic | **Claude Opus 4.8 Thinking** | **Extra High** | Deep reasoning for race conditions and transaction boundaries |
+| Next.js SSR, Server Components, UI | **Claude Sonnet 4.6 Thinking** | **High** | Excellent React/Next.js patterns and component architecture |
+| BullMQ, workers, async pipelines | **GPT-5.3 Codex** | **High** | Strong systems programming and queue semantics |
+| Integration tests, E2E | **Claude Sonnet 4.6 Thinking** | **Medium** | Good at test design and edge case coverage |
+| Complex multi-file refactors | **Claude Opus 4.8 Thinking** | **Extra High** | Best for cross-cutting changes with many dependencies |
 
 ## Alternative Model Selection Guide (Cursor-native only)
 
 Use this **only** when the primary model is **not** Composer or Grok. Pick exactly one:
 
-| Task Type | Alternative Model | Prompt adaptation focus |
-|---|---|---|
-| Scaffolding, config, Docker, CI | **Composer 2.5 Fast** | Short sequential checklist; exact file paths; copy-pasteable commands |
-| Database schema, Prisma, migrations | **Grok 4.5** | Explicit entity/relation table; migration safety steps; validation queries |
-| Concurrency / locking logic | **Grok 4.5** | Scenario matrix (race cases); step-by-step locking protocol; failure modes |
-| Next.js SSR, Server Components, UI | **Composer 2.5 Fast** | Component/file tree first; SSR vs client boundaries listed; a11y/acceptance checks |
-| BullMQ, workers, async pipelines | **Grok 4.5** | Queue topology diagram in text; retry/idempotency rules; job payload contracts |
-| Integration tests, E2E | **Composer 2.5 Fast** | Test cases enumerated; setup/teardown steps; expected assertions |
-| Complex multi-file refactors | **Grok 4.5** | Ordered change plan per file; dependency order; post-refactor verification |
+| Task Type | Alternative Model | Effort | Prompt adaptation focus |
+|---|---|---|---|
+| Scaffolding, config, Docker, CI | **Composer 2.5 Fast** | **N/A** | Short sequential checklist; exact file paths; copy-pasteable commands |
+| Database schema, Prisma, migrations | **Grok 4.5** | **High** | Explicit entity/relation table; migration safety steps; validation queries |
+| Concurrency / locking logic | **Grok 4.5** | **Extra High** | Scenario matrix (race cases); step-by-step locking protocol; failure modes |
+| Next.js SSR, Server Components, UI | **Composer 2.5 Fast** | **N/A** | Component/file tree first; SSR vs client boundaries listed; a11y/acceptance checks |
+| BullMQ, workers, async pipelines | **Grok 4.5** | **High** | Queue topology diagram in text; retry/idempotency rules; job payload contracts |
+| Integration tests, E2E | **Composer 2.5 Fast** | **N/A** | Test cases enumerated; setup/teardown steps; expected assertions |
+| Complex multi-file refactors | **Grok 4.5** | **Extra High** | Ordered change plan per file; dependency order; post-refactor verification |
 
 **Adaptation principles for the alternative prompt:**
 
@@ -188,12 +213,15 @@ Use this **only** when the primary model is **not** Composer or Grok. Pick exact
 - Prefer **more explicit structure** (numbered steps, checklists, verification commands).
 - Spell out **edge cases and "do not"** items that a stronger reasoning model might infer.
 - Never ship a thinner or vaguer alternative — if anything, make it more operational.
+- Match or slightly raise effort vs. the primary when compensating with Composer/Grok (never recommend a weaker effort for a harder task).
 
 ## Important Rules
 
+- **Always respond to the user in Brazilian Portuguese (pt-BR).** Never switch the skill output to English unless the user explicitly requests it.
 - Never recommend a task whose blockers are incomplete unless explicitly overriding with user approval.
 - Always cite specific files/evidence from the codebase when describing current state.
 - Both implementation prompts (primary and, when present, alternative) must be self-contained — the user should not need to add context.
+- Always include the recommended **effort level** for every model suggestion.
 - If the primary model is Composer or Grok, do not invent a redundant Cursor-native alternative.
 - If all issues are Done, recommend defining the next roadmap phase or hardening tasks (auth, E2E, production deploy).
 - Documentation and commit messages must remain in **English**.
