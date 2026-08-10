@@ -29,8 +29,8 @@ coverage/
 # TypeScript
 *.tsbuildinfo
 
-# Prisma (future)
-packages/database/prisma/migrations/
+# Next.js generates this file (next typegen / next dev / next build)
+**/next-env.d.ts
 
 # Misc
 .turbo/

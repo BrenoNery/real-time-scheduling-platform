@@ -15,11 +15,16 @@
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src",
-    "db:migrate": "echo 'Prisma migrations not yet configured (BRE-35)'",
-    "db:seed": "echo 'Seed script not yet configured (BRE-35)'"
+    "db:generate": "prisma generate",
+    "db:migrate": "node --env-file=../../.env ../../node_modules/prisma/build/index.js migrate dev",
+    "db:seed": "echo 'Seed script not yet configured (BRE-44)'"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.19.3"
   },
   "devDependencies": {
     "@types/node": "^22.10.7",
+    "prisma": "^6.19.3",
     "typescript": "^5.7.3"
   }
 }
