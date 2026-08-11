@@ -4,13 +4,14 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/server.ts",
+    "dev": "tsx watch --env-file=../../.env src/server.ts",
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src",
-    "start": "node dist/server.js"
+    "start": "node --env-file=../../.env dist/server.js"
   },
   "dependencies": {
+    "@repo/database": "*",
     "fastify": "^5.2.1"
   },
   "devDependencies": {
