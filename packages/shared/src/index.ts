@@ -13,8 +13,18 @@ export {
   apiError,
   SlotUnavailableError,
   isSlotUnavailableError,
+  NotFoundError,
+  isNotFoundError,
 } from "./errors.js";
 export type { ApiErrorEnvelope } from "./errors.js";
 
-export { createBookingBodySchema } from "./bookings.js";
-export type { CreateBookingBody } from "./bookings.js";
+export {
+  createBookingBodySchema,
+  bookingIdParamsSchema,
+  listBookingsQuerySchema,
+} from "./bookings.js";
+export type {
+  CreateBookingBody,
+  BookingIdParams,
+  ListBookingsQuery,
+} from "./bookings.js";
