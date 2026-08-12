@@ -9,13 +9,14 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint src",
     "start": "node --env-file=../../.env dist/server.js",
-    "test:integration": "tsx --env-file=../../.env --test test/bookings.concurrency.test.ts"
+    "test:integration": "tsx --env-file=../../.env --test test/bookings.concurrency.test.ts test/bookings.crud.test.ts"
   },
-
   "dependencies": {
     "@repo/database": "*",
     "@repo/shared": "*",
-    "fastify": "^5.2.1"
+    "bullmq": "^6.0.11",
+    "fastify": "^5.2.1",
+    "ioredis": "^6.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.7",
