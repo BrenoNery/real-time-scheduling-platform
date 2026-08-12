@@ -9,7 +9,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint src",
     "start": "node --env-file=../../.env dist/server.js",
-    "test:integration": "tsx --env-file=../../.env --test test/**/*.test.ts"
+    "test:integration": "tsx --env-file=../../.env --test test/bookings.concurrency.test.ts test/bookings.crud.test.ts"
   },
   "dependencies": {
     "@repo/database": "*",
