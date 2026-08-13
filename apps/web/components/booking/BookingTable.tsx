@@ -1,5 +1,6 @@
 import type { BookingStatus, Prisma } from "@repo/database";
 
+import { BookingActions } from "@/components/booking/BookingActions";
 import {
   Table,
   TableBody,
@@ -60,6 +61,7 @@ export function BookingTable({ bookings }: BookingTableProps) {
           <TableHead>Client</TableHead>
           <TableHead>Status</TableHead>
           <TableHead>Booked At</TableHead>
+          <TableHead className="w-[120px]">Actions</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -77,6 +79,12 @@ export function BookingTable({ bookings }: BookingTableProps) {
             <TableCell>{STATUS_LABELS[booking.status]}</TableCell>
             <TableCell className="whitespace-nowrap">
               {formatDateTime(booking.bookedAt)}
+            </TableCell>
+            <TableCell>
+              <BookingActions
+                bookingId={booking.id}
+                status={booking.status}
+              />
             </TableCell>
           </TableRow>
         ))}
