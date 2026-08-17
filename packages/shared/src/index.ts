@@ -23,8 +23,4 @@ export {
   bookingIdParamsSchema,
   listBookingsQuerySchema,
 } from "./bookings.js";
-export type {
-  CreateBookingBody,
-  BookingIdParams,
-  ListBookingsQuery,
-} from "./bookings.js";
+export type { CreateBookingBody, BookingIdParams, ListBookingsQuery } from "./bookings.js";

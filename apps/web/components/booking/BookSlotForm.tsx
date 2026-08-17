@@ -45,11 +45,7 @@ export function BookSlotForm({ slots, clients }: BookSlotFormProps) {
   const [isPending, startTransition] = useTransition();
 
   if (slots.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        No available slots to book right now.
-      </p>
-    );
+    return <p className="text-sm text-muted-foreground">No available slots to book right now.</p>;
   }
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {

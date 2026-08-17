@@ -42,9 +42,7 @@ export function BookingTable({ bookings }: BookingTableProps) {
   if (bookings.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-16 text-center">
-        <p className="text-lg font-medium text-muted-foreground">
-          No bookings yet
-        </p>
+        <p className="text-lg font-medium text-muted-foreground">No bookings yet</p>
         <p className="mt-1 text-sm text-muted-foreground">
           Bookings will appear here once they are created.
         </p>
@@ -67,9 +65,7 @@ export function BookingTable({ bookings }: BookingTableProps) {
       <TableBody>
         {bookings.map((booking) => (
           <TableRow key={booking.id}>
-            <TableCell className="font-medium">
-              {booking.slot.service.name}
-            </TableCell>
+            <TableCell className="font-medium">{booking.slot.service.name}</TableCell>
             <TableCell className="whitespace-nowrap">
               {formatDateTime(booking.slot.startsAt)}
               {" \u2013 "}
@@ -77,14 +73,9 @@ export function BookingTable({ bookings }: BookingTableProps) {
             </TableCell>
             <TableCell>{booking.client.name}</TableCell>
             <TableCell>{STATUS_LABELS[booking.status]}</TableCell>
-            <TableCell className="whitespace-nowrap">
-              {formatDateTime(booking.bookedAt)}
-            </TableCell>
+            <TableCell className="whitespace-nowrap">{formatDateTime(booking.bookedAt)}</TableCell>
             <TableCell>
-              <BookingActions
-                bookingId={booking.id}
-                status={booking.status}
-              />
+              <BookingActions bookingId={booking.id} status={booking.status} />
             </TableCell>
           </TableRow>
         ))}

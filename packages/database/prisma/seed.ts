@@ -121,11 +121,7 @@ async function seed() {
     const startsAt = atUtc(baseDate, dayOffset, hour, 0);
     const endsAt = new Date(startsAt.getTime() + 30 * 60 * 1000);
     const status =
-      i % 5 === 0
-        ? SlotStatus.BOOKED
-        : i === 11
-          ? SlotStatus.BLOCKED
-          : SlotStatus.AVAILABLE;
+      i % 5 === 0 ? SlotStatus.BOOKED : i === 11 ? SlotStatus.BLOCKED : SlotStatus.AVAILABLE;
     slotPlans.push({
       serviceId: services[0].id,
       startsAt,
@@ -141,11 +137,7 @@ async function seed() {
     const startsAt = atUtc(baseDate, dayOffset, hour, 0);
     const endsAt = new Date(startsAt.getTime() + 60 * 60 * 1000);
     const status =
-      i % 4 === 0
-        ? SlotStatus.BOOKED
-        : i === 11
-          ? SlotStatus.BLOCKED
-          : SlotStatus.AVAILABLE;
+      i % 4 === 0 ? SlotStatus.BOOKED : i === 11 ? SlotStatus.BLOCKED : SlotStatus.AVAILABLE;
     slotPlans.push({
       serviceId: services[1].id,
       startsAt,
@@ -169,24 +161,21 @@ async function seed() {
     });
   }
 
-  const [providerCount, serviceCount, slotCount, bookingCount, statusGroups] =
-    await Promise.all([
-      prisma.user.count({ where: { email: DEMO_PROVIDER_EMAIL, role: Role.PROVIDER } }),
-      prisma.service.count({ where: { providerId: provider.id } }),
-      prisma.timeSlot.count({ where: { serviceId: { in: serviceIds } } }),
-      prisma.booking.count({
-        where: { slot: { serviceId: { in: serviceIds } } },
-      }),
-      prisma.timeSlot.groupBy({
-        by: ["status"],
-        where: { serviceId: { in: serviceIds } },
-        _count: { _all: true },
-      }),
-    ]);
+  const [providerCount, serviceCount, slotCount, bookingCount, statusGroups] = await Promise.all([
+    prisma.user.count({ where: { email: DEMO_PROVIDER_EMAIL, role: Role.PROVIDER } }),
+    prisma.service.count({ where: { providerId: provider.id } }),
+    prisma.timeSlot.count({ where: { serviceId: { in: serviceIds } } }),
+    prisma.booking.count({
+      where: { slot: { serviceId: { in: serviceIds } } },
+    }),
+    prisma.timeSlot.groupBy({
+      by: ["status"],
+      where: { serviceId: { in: serviceIds } },
+      _count: { _all: true },
+    }),
+  ]);
 
-  const statusSummary = Object.fromEntries(
-    statusGroups.map((g) => [g.status, g._count._all]),
-  );
+  const statusSummary = Object.fromEntries(statusGroups.map((g) => [g.status, g._count._all]));
 
   console.log("Demo seed complete:");
   console.log(`  providers: ${providerCount}`);
@@ -196,9 +185,7 @@ async function seed() {
 }
 
 function nextMondayUtc(from: Date): Date {
-  const d = new Date(
-    Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), from.getUTCDate()),
-  );
+  const d = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), from.getUTCDate()));
   const day = d.getUTCDay(); // 0=Sun … 6=Sat
   const daysUntilMonday = day === 1 ? 7 : (8 - day) % 7 || 7;
   d.setUTCDate(d.getUTCDate() + daysUntilMonday);
