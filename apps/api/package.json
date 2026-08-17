@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch --env-file=../../.env src/server.ts",
+    "worker:dev": "tsx watch --env-file=../../.env src/worker.ts",
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src",
@@ -16,10 +17,12 @@
     "@repo/shared": "*",
     "bullmq": "^6.0.11",
     "fastify": "^5.2.1",
-    "ioredis": "^6.0.0"
+    "ioredis": "^6.0.0",
+    "nodemailer": "^9.0.5"
   },
   "devDependencies": {
     "@types/node": "^22.10.7",
+    "@types/nodemailer": "^8.0.1",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3"
   }

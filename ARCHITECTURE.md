@@ -350,7 +350,7 @@ interface BookingConfirmationJob {
 | Feature | Configuration |
 |---|---|
 | **Retries** | 3 attempts with exponential backoff (1s, 4s, 16s) |
-| **Dead Letter Queue** | Failed jobs after max retries → `notifications:dlq` |
+| **Dead Letter Queue** | Failed jobs after max retries → `notifications-dlq` (BullMQ 6 forbids `:` in queue names) |
 | **Idempotency** | Job ID = `booking:{bookingId}:confirmation` prevents duplicates |
 | **Observability** | BullMQ Board (dev) or BullMQ Pro metrics (prod) |
 

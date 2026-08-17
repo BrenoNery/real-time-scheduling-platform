@@ -109,7 +109,7 @@ real-time-scheduling-platform/
 
 ## How to Run
 
-> **Note:** Application services are not yet implemented. The commands below describe the target workflow once scaffolding is complete.
+> **Note:** Confirmation emails are delivered by the API worker (`npm run worker:dev --workspace=@repo/api`). Start Mailpit, Redis, the API, and the worker, then `POST /bookings` — the message should appear at http://localhost:8025.
 
 ### Prerequisites
 
