@@ -10,7 +10,9 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint src",
     "start": "node --env-file=../../.env dist/server.js",
-    "test:integration": "tsx --env-file=../../.env --test test/bookings.concurrency.test.ts test/bookings.crud.test.ts"
+    "test": "tsx --test test/notification.worker.test.ts",
+    "test:unit": "tsx --test test/notification.worker.test.ts",
+    "test:integration": "sh -c 'if [ -f ../../.env ]; then exec tsx --env-file=../../.env --test test/bookings.concurrency.test.ts test/bookings.crud.test.ts; else exec tsx --test test/bookings.concurrency.test.ts test/bookings.crud.test.ts; fi'"
   },
   "dependencies": {
     "@repo/database": "*",

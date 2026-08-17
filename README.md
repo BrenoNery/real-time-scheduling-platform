@@ -1,5 +1,7 @@
 # Real-Time Scheduling Platform
 
+[![CI](https://github.com/BrenoNery/real-time-scheduling-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/BrenoNery/real-time-scheduling-platform/actions/workflows/ci.yml)
+
 A portfolio-grade, production-oriented scheduling platform built with TypeScript. The system demonstrates real-world engineering challenges: **Server-Side Rendering (SSR)**, **PostgreSQL concurrency control**, and **asynchronous background job processing**.
 
 ---
@@ -10,24 +12,24 @@ This platform allows service providers to manage time slots and lets clients boo
 
 ### Core Capabilities
 
-| Capability | Description |
-|---|---|
-| **Booking Dashboard** | SSR-powered management UI built with Next.js App Router and Server Components |
-| **Concurrency-Safe Booking** | PostgreSQL row-level locking (`SELECT … FOR UPDATE`) and advisory locks |
-| **Async Notifications** | BullMQ + Redis queue for confirmation emails without blocking the API |
-| **Relational Data Model** | PostgreSQL managed through Prisma ORM |
+| Capability                   | Description                                                                   |
+| ---------------------------- | ----------------------------------------------------------------------------- |
+| **Booking Dashboard**        | SSR-powered management UI built with Next.js App Router and Server Components |
+| **Concurrency-Safe Booking** | PostgreSQL row-level locking (`SELECT … FOR UPDATE`) and advisory locks       |
+| **Async Notifications**      | BullMQ + Redis queue for confirmation emails without blocking the API         |
+| **Relational Data Model**    | PostgreSQL managed through Prisma ORM                                         |
 
 ---
 
 ## Tech Stack
 
-| Layer | Technology | Rationale |
-|---|---|---|
-| **Frontend** | Next.js 15 (App Router), TailwindCSS, shadcn/ui | SSR/Server Components, modern React patterns, accessible UI primitives |
-| **Backend** | Node.js + TypeScript + **Fastify** | High-performance HTTP server with first-class TypeScript support and a lightweight plugin ecosystem |
-| **Database** | PostgreSQL 16 + Prisma ORM | ACID transactions, native locking primitives, type-safe queries |
-| **Queue** | BullMQ + Redis 7 | Reliable background job processing with retries and observability |
-| **Infrastructure** | Docker Compose (Mailpit) + DBngin (PostgreSQL, Redis) | Native DB services for daily dev; Docker only where needed |
+| Layer              | Technology                                            | Rationale                                                                                           |
+| ------------------ | ----------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| **Frontend**       | Next.js 15 (App Router), TailwindCSS, shadcn/ui       | SSR/Server Components, modern React patterns, accessible UI primitives                              |
+| **Backend**        | Node.js + TypeScript + **Fastify**                    | High-performance HTTP server with first-class TypeScript support and a lightweight plugin ecosystem |
+| **Database**       | PostgreSQL 16 + Prisma ORM                            | ACID transactions, native locking primitives, type-safe queries                                     |
+| **Queue**          | BullMQ + Redis 7                                      | Reliable background job processing with retries and observability                                   |
+| **Infrastructure** | Docker Compose (Mailpit) + DBngin (PostgreSQL, Redis) | Native DB services for daily dev; Docker only where needed                                          |
 
 > **Why Fastify over NestJS?** Fastify offers lower overhead and explicit control over request lifecycle — ideal for demonstrating transaction boundaries and locking semantics. NestJS remains a viable alternative if the project grows into a modular monolith.
 
@@ -121,11 +123,11 @@ real-time-scheduling-platform/
 
 **npm and pnpm are not the same tool.** Both manage dependencies, but this project uses **npm workspaces** (built into npm 7+) as the default — no extra install required if you already have Node.js.
 
-| | npm (default) | pnpm (optional) |
-|---|---|---|
-| Install | Included with Node.js | `brew install pnpm` |
-| Monorepo support | npm workspaces | pnpm workspaces |
-| Install deps | `npm install` | `pnpm install` |
+|                       | npm (default)                       | pnpm (optional)               |
+| --------------------- | ----------------------------------- | ----------------------------- |
+| Install               | Included with Node.js               | `brew install pnpm`           |
+| Monorepo support      | npm workspaces                      | pnpm workspaces               |
+| Install deps          | `npm install`                       | `pnpm install`                |
 | Run script in package | `npm run dev --workspace=@repo/api` | `pnpm --filter @repo/api dev` |
 
 pnpm is faster and more disk-efficient in large monorepos, but **you do not need to install it** unless you prefer it. All documentation uses npm commands.
@@ -160,11 +162,11 @@ docker compose -f docker/docker-compose.yml up -d mailpit
 
 > **Port conflict:** If Mailpit is already running on `localhost:1025` / `8025` (e.g. from another Docker stack), configure `SMTP_HOST` and `SMTP_PORT` in `.env` to match that instance and skip `docker compose ... mailpit` to avoid binding errors.
 
-| Service | Source | URL | Purpose |
-|---|---|---|---|
-| PostgreSQL | DBngin | `localhost:5432` | Primary database |
-| Redis | DBngin | `localhost:6379` | BullMQ broker |
-| Mailpit | Docker | `http://localhost:8025` | Local email capture (dev) |
+| Service    | Source | URL                     | Purpose                   |
+| ---------- | ------ | ----------------------- | ------------------------- |
+| PostgreSQL | DBngin | `localhost:5432`        | Primary database          |
+| Redis      | DBngin | `localhost:6379`        | BullMQ broker             |
+| Mailpit    | Docker | `http://localhost:8025` | Local email capture (dev) |
 
 > **Alternative:** To run PostgreSQL and Redis via Docker instead of DBngin (e.g. CI or contributors without DBngin), use the optional `full` profile: `docker compose -f docker/docker-compose.yml --profile full up -d`
 
@@ -190,11 +192,11 @@ npm run worker:dev --workspace=@repo/api
 
 ### 5. Access the application
 
-| Service | URL |
-|---|---|
-| Web (Dashboard) | http://localhost:3000 |
-| API (Health) | http://localhost:3333/health |
-| Mailpit (Dev inbox) | http://localhost:8025 |
+| Service             | URL                          |
+| ------------------- | ---------------------------- |
+| Web (Dashboard)     | http://localhost:3000        |
+| API (Health)        | http://localhost:3333/health |
+| Mailpit (Dev inbox) | http://localhost:8025        |
 
 ### Full stack via Docker Compose (CI / alternative setup)
 
@@ -234,17 +236,31 @@ PostgreSQL and Redis run natively via **DBngin** for fast startup and easy inspe
 
 ## Development Workflow
 
+### Continuous Integration
+
+GitHub Actions runs on every push to `main` and on pull requests ([`.github/workflows/ci.yml`](./.github/workflows/ci.yml)):
+
+| Job                    | Command(s)                                                                                               | Notes                                      |
+| ---------------------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| **lint**               | `npm run lint`, `npm run format:check`                                                                   | ESLint + Prettier                          |
+| **type-check**         | `npm run db:generate`, build `@repo/database` + `@repo/shared`, `npm run typecheck`                      | Prisma client + compiled workspace types   |
+| **test (unit)**        | `npm run test`                                                                                           | No Postgres required                       |
+| **test (integration)** | Docker service containers (PostgreSQL 16 + Redis 7), `prisma migrate deploy`, `npm run test:integration` | Same credentials as Compose `full` profile |
+| **build**              | generate + build packages, `npm run build`                                                               | `@repo/web` and `@repo/api`                |
+
+Locally: `npm run test` for unit tests; `npm run test:integration --workspace=@repo/api` with a migrated database for integration tests.
+
 ### Project Management (Linear)
 
 All development tasks are tracked as Issues in the Linear project **[Real-Time Scheduling Platform](https://linear.app/breno-nery/project/real-time-scheduling-platform-8335a3f3ee49)**. Issues are categorized by context prefix:
 
-| Prefix | Domain |
-|---|---|
-| `[DevOps]` | Docker, CI/CD, environment configuration |
-| `[Backend]` | Fastify API, Prisma, BullMQ workers |
+| Prefix       | Domain                                    |
+| ------------ | ----------------------------------------- |
+| `[DevOps]`   | Docker, CI/CD, environment configuration  |
+| `[Backend]`  | Fastify API, Prisma, BullMQ workers       |
 | `[Frontend]` | Next.js pages, components, Server Actions |
-| `[Database]` | Schema design, migrations, seed data |
-| `[Docs]` | Documentation and project tooling |
+| `[Database]` | Schema design, migrations, seed data      |
+| `[Docs]`     | Documentation and project tooling         |
 
 ### "What's the next task?" Copilot
 
@@ -256,20 +272,20 @@ Ask exactly **"Qual a próxima tarefa?"** or **"What's the next task?"** in Curs
 
 The following Issues are planned for creation in Linear upon documentation approval. See [ARCHITECTURE.md — Initial Linear Issues](./ARCHITECTURE.md#initial-linear-issues) for full descriptions and acceptance criteria.
 
-| Priority | Issue | Context |
-|---|---|---|
-| 🔴 Urgent | Monorepo scaffolding & tooling setup | `[DevOps]` |
-| 🔴 Urgent | Docker Compose infrastructure | `[DevOps]` |
-| 🔴 Urgent | Prisma schema & initial migration | `[Database]` |
-| 🟠 High | Fastify API bootstrap & health check | `[Backend]` |
-| 🟠 High | PostgreSQL locking proof-of-concept | `[Backend]` |
-| 🟠 High | Next.js App Router bootstrap | `[Frontend]` |
-| 🟠 High | Booking dashboard (SSR) | `[Frontend]` |
-| 🟡 Medium | BullMQ queue & email worker | `[Backend]` |
-| 🟡 Medium | Booking API endpoints (CRUD) | `[Backend]` |
-| 🟡 Medium | Server Actions integration | `[Frontend]` |
-| 🟢 Low | Seed data & demo scenarios | `[Database]` |
-| 🟢 Low | CI pipeline (lint, test, build) | `[DevOps]` |
+| Priority  | Issue                                | Context      |
+| --------- | ------------------------------------ | ------------ |
+| 🔴 Urgent | Monorepo scaffolding & tooling setup | `[DevOps]`   |
+| 🔴 Urgent | Docker Compose infrastructure        | `[DevOps]`   |
+| 🔴 Urgent | Prisma schema & initial migration    | `[Database]` |
+| 🟠 High   | Fastify API bootstrap & health check | `[Backend]`  |
+| 🟠 High   | PostgreSQL locking proof-of-concept  | `[Backend]`  |
+| 🟠 High   | Next.js App Router bootstrap         | `[Frontend]` |
+| 🟠 High   | Booking dashboard (SSR)              | `[Frontend]` |
+| 🟡 Medium | BullMQ queue & email worker          | `[Backend]`  |
+| 🟡 Medium | Booking API endpoints (CRUD)         | `[Backend]`  |
+| 🟡 Medium | Server Actions integration           | `[Frontend]` |
+| 🟢 Low    | Seed data & demo scenarios           | `[Database]` |
+| 🟢 Low    | CI pipeline (lint, test, build)      | `[DevOps]`   |
 
 ---
 
