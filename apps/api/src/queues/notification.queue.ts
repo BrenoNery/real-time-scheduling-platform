@@ -50,18 +50,15 @@ export function getNotificationQueue(): Queue<BookingConfirmationJobPayload> | n
   }
 
   if (!confirmationQueue) {
-    confirmationQueue = new Queue<BookingConfirmationJobPayload>(
-      NOTIFICATION_QUEUE_NAME,
-      {
-        connection,
-        defaultJobOptions: {
-          attempts: 3,
-          backoff: { type: "exponential", delay: 1000 },
-          removeOnComplete: 1000,
-          removeOnFail: 5000,
-        },
+    confirmationQueue = new Queue<BookingConfirmationJobPayload>(NOTIFICATION_QUEUE_NAME, {
+      connection,
+      defaultJobOptions: {
+        attempts: 3,
+        backoff: { type: "exponential", delay: 1000 },
+        removeOnComplete: 1000,
+        removeOnFail: 5000,
       },
-    );
+    });
   }
 
   return confirmationQueue;

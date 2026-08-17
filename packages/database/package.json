@@ -17,6 +17,7 @@
     "lint": "eslint src",
     "db:generate": "prisma generate",
     "db:migrate": "node --env-file=../../.env ../../node_modules/prisma/build/index.js migrate dev",
+    "db:migrate:deploy": "prisma migrate deploy",
     "db:seed": "node --env-file=../../.env --import tsx prisma/seed.ts"
   },
   "dependencies": {

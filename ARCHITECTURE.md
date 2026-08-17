@@ -43,11 +43,11 @@ flowchart TB
 
 ### Actors
 
-| Actor | Role |
-|---|---|
+| Actor                | Role                                                                       |
+| -------------------- | -------------------------------------------------------------------------- |
 | **Service Provider** | Creates services, defines availability windows, views and manages bookings |
-| **Client** | Browses available slots and creates bookings |
-| **System (Worker)** | Processes queued jobs (email dispatch, future: SMS, webhooks) |
+| **Client**           | Browses available slots and creates bookings                               |
+| **System (Worker)**  | Processes queued jobs (email dispatch, future: SMS, webhooks)              |
 
 ---
 
@@ -111,14 +111,14 @@ flowchart LR
 
 ### 3.1 Frontend — `apps/web`
 
-| Module | Responsibility |
-|---|---|
-| `app/(dashboard)/` | Protected dashboard routes (Server Components) |
-| `app/(public)/book/` | Public booking flow |
-| `components/ui/` | shadcn/ui primitives (Button, Calendar, Dialog, etc.) |
-| `components/booking/` | Domain-specific components (SlotGrid, BookingForm) |
-| `lib/actions/` | Server Actions wrapping API calls |
-| `lib/db.ts` | Prisma client singleton for Server Component reads |
+| Module                | Responsibility                                        |
+| --------------------- | ----------------------------------------------------- |
+| `app/(dashboard)/`    | Protected dashboard routes (Server Components)        |
+| `app/(public)/book/`  | Public booking flow                                   |
+| `components/ui/`      | shadcn/ui primitives (Button, Calendar, Dialog, etc.) |
+| `components/booking/` | Domain-specific components (SlotGrid, BookingForm)    |
+| `lib/actions/`        | Server Actions wrapping API calls                     |
+| `lib/db.ts`           | Prisma client singleton for Server Component reads    |
 
 **SSR Pattern:**
 
@@ -137,16 +137,16 @@ Server Components read directly from PostgreSQL. Mutations go through Server Act
 
 ### 3.2 Backend — `apps/api`
 
-| Module | Responsibility |
-|---|---|
-| `routes/health.ts` | Health check endpoint |
-| `routes/bookings.ts` | Booking CRUD + concurrency-safe create |
-| `routes/slots.ts` | Slot availability management |
-| `services/booking.service.ts` | Transaction orchestration |
-| `services/lock.service.ts` | PostgreSQL lock acquisition |
-| `queues/notification.queue.ts` | BullMQ producer |
-| `workers/notification.worker.ts` | BullMQ consumer (separate process) |
-| `plugins/prisma.ts` | Fastify plugin decorating `request.server.prisma` |
+| Module                           | Responsibility                                    |
+| -------------------------------- | ------------------------------------------------- |
+| `routes/health.ts`               | Health check endpoint                             |
+| `routes/bookings.ts`             | Booking CRUD + concurrency-safe create            |
+| `routes/slots.ts`                | Slot availability management                      |
+| `services/booking.service.ts`    | Transaction orchestration                         |
+| `services/lock.service.ts`       | PostgreSQL lock acquisition                       |
+| `queues/notification.queue.ts`   | BullMQ producer                                   |
+| `workers/notification.worker.ts` | BullMQ consumer (separate process)                |
+| `plugins/prisma.ts`              | Fastify plugin decorating `request.server.prisma` |
 
 **Fastify Plugin Structure:**
 
@@ -165,10 +165,10 @@ apps/api/src/
 
 ### 3.3 Shared Packages
 
-| Package | Contents |
-|---|---|
-| `@repo/database` | Prisma schema, migrations, generated client, seed script |
-| `@repo/shared` | Zod validators, TypeScript interfaces, constants, error codes |
+| Package          | Contents                                                      |
+| ---------------- | ------------------------------------------------------------- |
+| `@repo/database` | Prisma schema, migrations, generated client, seed script      |
+| `@repo/shared`   | Zod validators, TypeScript interfaces, constants, error codes |
 
 ---
 
@@ -306,12 +306,12 @@ Advisory locks are automatically released at transaction end (`xact` scope).
 
 ### Lock Strategy Decision Matrix
 
-| Scenario | Strategy | Reason |
-|---|---|---|
-| Single slot booking | `SELECT … FOR UPDATE` | Row-level, minimal contention scope |
-| Bulk slot generation | Advisory lock per service+date | Prevents duplicate slot creation |
-| Dashboard reads | No lock (Read Committed) | Stale reads acceptable for display |
-| Booking cancellation | `FOR UPDATE` on booking row | Prevents double-cancel |
+| Scenario             | Strategy                       | Reason                              |
+| -------------------- | ------------------------------ | ----------------------------------- |
+| Single slot booking  | `SELECT … FOR UPDATE`          | Row-level, minimal contention scope |
+| Bulk slot generation | Advisory lock per service+date | Prevents duplicate slot creation    |
+| Dashboard reads      | No lock (Read Committed)       | Stale reads acceptable for display  |
+| Booking cancellation | `FOR UPDATE` on booking row    | Prevents double-cancel              |
 
 ---
 
@@ -347,12 +347,12 @@ interface BookingConfirmationJob {
 
 ### Reliability Features
 
-| Feature | Configuration |
-|---|---|
-| **Retries** | 3 attempts with exponential backoff (1s, 4s, 16s) |
+| Feature               | Configuration                                                                             |
+| --------------------- | ----------------------------------------------------------------------------------------- |
+| **Retries**           | 3 attempts with exponential backoff (1s, 4s, 16s)                                         |
 | **Dead Letter Queue** | Failed jobs after max retries → `notifications-dlq` (BullMQ 6 forbids `:` in queue names) |
-| **Idempotency** | Job ID = `booking:{bookingId}:confirmation` prevents duplicates |
-| **Observability** | BullMQ Board (dev) or BullMQ Pro metrics (prod) |
+| **Idempotency**       | Job ID = `booking:{bookingId}:confirmation` prevents duplicates                           |
+| **Observability**     | BullMQ Board (dev) or BullMQ Pro metrics (prod)                                           |
 
 ### Why Not Inline Email?
 
@@ -437,13 +437,13 @@ flowchart TB
 
 ### Production (Target)
 
-| Component | Platform | Notes |
-|---|---|---|
-| Web | Vercel / Fly.io | Next.js standalone output |
-| API | Fly.io / Railway | Fastify with health checks |
-| Worker | Fly.io / Railway | Separate process, same codebase |
+| Component  | Platform              | Notes                                        |
+| ---------- | --------------------- | -------------------------------------------- |
+| Web        | Vercel / Fly.io       | Next.js standalone output                    |
+| API        | Fly.io / Railway      | Fastify with health checks                   |
+| Worker     | Fly.io / Railway      | Separate process, same codebase              |
 | PostgreSQL | Neon / Supabase / RDS | Managed, with connection pooling (PgBouncer) |
-| Redis | Upstash / ElastiCache | BullMQ-compatible |
+| Redis      | Upstash / ElastiCache | BullMQ-compatible                            |
 
 ---
 
@@ -451,13 +451,13 @@ flowchart TB
 
 ### Error Handling
 
-| HTTP Status | Scenario |
-|---|---|
-| `201` | Booking created successfully |
-| `409` | Slot no longer available (concurrency conflict) |
-| `404` | Slot or booking not found |
-| `422` | Validation error (Zod) |
-| `500` | Unexpected server error |
+| HTTP Status | Scenario                                        |
+| ----------- | ----------------------------------------------- |
+| `201`       | Booking created successfully                    |
+| `409`       | Slot no longer available (concurrency conflict) |
+| `404`       | Slot or booking not found                       |
+| `422`       | Validation error (Zod)                          |
+| `500`       | Unexpected server error                         |
 
 All API errors follow a consistent envelope:
 
@@ -479,12 +479,12 @@ All API errors follow a consistent envelope:
 
 ### Testing Strategy
 
-| Level | Tool | Focus |
-|---|---|---|
-| Unit | Vitest | Services, lock logic, validators |
-| Integration | Vitest + Testcontainers | API routes with real PostgreSQL |
-| Concurrency | Custom script | Parallel booking attempts against same slot |
-| E2E | Playwright | Full booking flow through UI |
+| Level       | Tool                    | Focus                                       |
+| ----------- | ----------------------- | ------------------------------------------- |
+| Unit        | Vitest                  | Services, lock logic, validators            |
+| Integration | Vitest + Testcontainers | API routes with real PostgreSQL             |
+| Concurrency | Custom script           | Parallel booking attempts against same slot |
+| E2E         | Playwright              | Full booking flow through UI                |
 
 ### Security (Future Phases)
 
@@ -503,29 +503,29 @@ The following Issues live in the Linear project **[Real-Time Scheduling Platform
 
 ### Development Phases (Milestones)
 
-| Milestone | Target | Issues (Linear ID) | Goal |
-|---|---|---|---|
-| **Phase 1 — Foundation & Data** | 2026-07-26 | BRE-33, BRE-34, BRE-35, BRE-44 | Monorepo, infra, Prisma schema, seed data |
-| **Phase 2 — Backend Core & Concurrency** | 2026-08-09 | BRE-36, BRE-37, BRE-41 | Fastify API, locking PoC, booking CRUD |
-| **Phase 3 — Frontend & SSR Dashboard** | 2026-08-23 | BRE-38, BRE-40, BRE-43 | Next.js, SSR dashboard, Server Actions |
-| **Phase 4 — Notifications & Delivery** | 2026-09-06 | BRE-45, BRE-42 | BullMQ email worker, CI pipeline |
+| Milestone                                | Target     | Issues (Linear ID)             | Goal                                      |
+| ---------------------------------------- | ---------- | ------------------------------ | ----------------------------------------- |
+| **Phase 1 — Foundation & Data**          | 2026-07-26 | BRE-33, BRE-34, BRE-35, BRE-44 | Monorepo, infra, Prisma schema, seed data |
+| **Phase 2 — Backend Core & Concurrency** | 2026-08-09 | BRE-36, BRE-37, BRE-41         | Fastify API, locking PoC, booking CRUD    |
+| **Phase 3 — Frontend & SSR Dashboard**   | 2026-08-23 | BRE-38, BRE-40, BRE-43         | Next.js, SSR dashboard, Server Actions    |
+| **Phase 4 — Notifications & Delivery**   | 2026-09-06 | BRE-45, BRE-42                 | BullMQ email worker, CI pipeline          |
 
 ### Doc → Linear ID Mapping
 
 | Doc ref | Linear ID | Milestone |
-|---|---|---|
-| BRE-1 | BRE-33 | Phase 1 |
-| BRE-2 | BRE-34 | Phase 1 |
-| BRE-3 | BRE-35 | Phase 1 |
-| BRE-4 | BRE-36 | Phase 2 |
-| BRE-5 | BRE-37 | Phase 2 |
-| BRE-6 | BRE-38 | Phase 3 |
-| BRE-7 | BRE-40 | Phase 3 |
-| BRE-8 | BRE-45 | Phase 4 |
-| BRE-9 | BRE-41 | Phase 2 |
-| BRE-10 | BRE-43 | Phase 3 |
-| BRE-11 | BRE-44 | Phase 1 |
-| BRE-12 | BRE-42 | Phase 4 |
+| ------- | --------- | --------- |
+| BRE-1   | BRE-33    | Phase 1   |
+| BRE-2   | BRE-34    | Phase 1   |
+| BRE-3   | BRE-35    | Phase 1   |
+| BRE-4   | BRE-36    | Phase 2   |
+| BRE-5   | BRE-37    | Phase 2   |
+| BRE-6   | BRE-38    | Phase 3   |
+| BRE-7   | BRE-40    | Phase 3   |
+| BRE-8   | BRE-45    | Phase 4   |
+| BRE-9   | BRE-41    | Phase 2   |
+| BRE-10  | BRE-43    | Phase 3   |
+| BRE-11  | BRE-44    | Phase 1   |
+| BRE-12  | BRE-42    | Phase 4   |
 
 ---
 
@@ -538,6 +538,7 @@ The following Issues live in the Linear project **[Real-Time Scheduling Platform
 Initialize the monorepo structure with npm workspaces, TypeScript project references, ESLint, Prettier, and shared tsconfig. Create the `apps/web`, `apps/api`, `packages/database`, and `packages/shared` directories with minimal boilerplate.
 
 **Acceptance Criteria:**
+
 - [ ] Root `package.json` with npm workspace configuration
 - [ ] Shared `tsconfig.base.json` extended by all packages
 - [ ] ESLint + Prettier configured at root with consistent rules
@@ -557,6 +558,7 @@ Initialize the monorepo structure with npm workspaces, TypeScript project refere
 Create `docker/docker-compose.yml` with **Mailpit** as the default service. PostgreSQL and Redis are expected to run locally via **DBngin**; document their connection strings in `.env.example`. Include an optional Docker Compose profile (`full`) for contributors who prefer containerized PostgreSQL and Redis.
 
 **Acceptance Criteria:**
+
 - [ ] `docker compose up -d mailpit` starts Mailpit successfully
 - [ ] Mailpit UI accessible at `http://localhost:8025`, SMTP at `localhost:1025`
 - [ ] `.env.example` documents DBngin defaults (`DATABASE_URL`, `REDIS_URL`) and Mailpit SMTP settings
@@ -575,6 +577,7 @@ Create `docker/docker-compose.yml` with **Mailpit** as the default service. Post
 Define the Prisma schema for User, Service, TimeSlot, Booking, and NotificationJob entities. Generate and apply the initial migration. Export the Prisma client from `@repo/database`.
 
 **Acceptance Criteria:**
+
 - [ ] Prisma schema matches the ER diagram in this document
 - [ ] Unique constraint on `Booking.slot_id`
 - [ ] Composite index on `(service_id, starts_at)` for TimeSlot
@@ -593,6 +596,7 @@ Define the Prisma schema for User, Service, TimeSlot, Booking, and NotificationJ
 Bootstrap the Fastify application with TypeScript, Prisma plugin, structured logging (pino), and a `/health` endpoint that verifies PostgreSQL connectivity.
 
 **Acceptance Criteria:**
+
 - [ ] Fastify starts on port 3333 via `npm run dev --workspace=@repo/api`
 - [ ] `GET /health` returns `{ status: "ok", db: "connected" }`
 - [ ] Prisma client available via Fastify decoration
@@ -610,6 +614,7 @@ Bootstrap the Fastify application with TypeScript, Prisma plugin, structured log
 Implement the `LockService` with `SELECT … FOR UPDATE` inside a Prisma transaction. Write an integration test that fires N concurrent booking requests against a single slot and asserts exactly one succeeds.
 
 **Acceptance Criteria:**
+
 - [ ] `LockService.acquireSlotLock()` uses `$queryRaw` with `FOR UPDATE`
 - [ ] Booking creation wrapped in `$transaction`
 - [ ] Concurrent test (≥10 parallel requests) passes: 1 success, N-1 conflicts (409)
@@ -627,6 +632,7 @@ Implement the `LockService` with `SELECT … FOR UPDATE` inside a Prisma transac
 Initialize the Next.js 15 application with App Router, TailwindCSS, and shadcn/ui. Configure the Prisma client for Server Component usage. Create a root layout and placeholder dashboard route.
 
 **Acceptance Criteria:**
+
 - [ ] Next.js dev server starts on port 3000
 - [ ] TailwindCSS and shadcn/ui configured with a base theme
 - [ ] Prisma client singleton in `lib/db.ts` for Server Components
@@ -644,6 +650,7 @@ Initialize the Next.js 15 application with App Router, TailwindCSS, and shadcn/u
 Build the booking management dashboard using Server Components. Display a table of bookings with slot time, client name, service, and status. Data must be fetched server-side via Prisma — no client-side fetch on initial load.
 
 **Acceptance Criteria:**
+
 - [ ] `/dashboard/bookings` renders booking data via Server Component
 - [ ] Table shows: service name, slot time, client name, status, booked at
 - [ ] Empty state when no bookings exist
@@ -662,6 +669,7 @@ Build the booking management dashboard using Server Components. Display a table 
 Set up BullMQ with Redis. Create a `notifications` queue, a worker process, and an email adapter using Nodemailer pointed at Mailpit (dev). Implement the booking confirmation job with retries and idempotency.
 
 **Acceptance Criteria:**
+
 - [ ] `NotificationQueue` enqueues jobs after successful booking
 - [ ] Worker process runs independently via `npm run worker:dev --workspace=@repo/api`
 - [ ] Confirmation email appears in Mailpit inbox
@@ -680,6 +688,7 @@ Set up BullMQ with Redis. Create a `notifications` queue, a worker process, and 
 Implement REST endpoints: `POST /bookings` (create with lock), `GET /bookings` (list), `GET /bookings/:id`, `DELETE /bookings/:id` (cancel). All endpoints validated with Zod schemas from `@repo/shared`.
 
 **Acceptance Criteria:**
+
 - [ ] All endpoints return consistent error envelope
 - [ ] `POST /bookings` uses LockService and enqueues notification
 - [ ] `DELETE /bookings/:id` sets status to CANCELLED and frees the slot
@@ -698,6 +707,7 @@ Implement REST endpoints: `POST /bookings` (create with lock), `GET /bookings` (
 Create Server Actions for booking creation and cancellation that call the Fastify API. Use `revalidatePath` to refresh the SSR dashboard after mutations.
 
 **Acceptance Criteria:**
+
 - [ ] `bookSlot(slotId)` Server Action calls `POST /api/bookings`
 - [ ] `cancelBooking(bookingId)` Server Action calls `DELETE /api/bookings/:id`
 - [ ] Dashboard revalidates after successful mutation
@@ -715,6 +725,7 @@ Create Server Actions for booking creation and cancellation that call the Fastif
 Create a seed script that populates the database with a demo provider, two services, 20+ time slots, and sample bookings for dashboard development and demos.
 
 **Acceptance Criteria:**
+
 - [ ] `npm run db:seed --workspace=@repo/database` populates demo data without errors
 - [ ] At least 1 provider, 2 services, 20 slots (mix of AVAILABLE and BOOKED)
 - [ ] Seed is idempotent (safe to run multiple times)
@@ -731,6 +742,7 @@ Create a seed script that populates the database with a demo provider, two servi
 Configure GitHub Actions workflow that runs lint, type-check, unit tests, and build on every push and pull request. Use Docker services for PostgreSQL and Redis in integration test job.
 
 **Acceptance Criteria:**
+
 - [ ] Workflow triggers on push to `main` and on PRs
 - [ ] Jobs: lint, type-check, test (unit), test (integration with Testcontainers)
 - [ ] Build succeeds for both `apps/web` and `apps/api`

@@ -28,10 +28,7 @@ export class BookingService {
    * After COMMIT, enqueues confirmation (NotificationJob + BullMQ). Enqueue failures
    * never roll back a committed booking.
    */
-  async createBooking({
-    slotId,
-    clientId,
-  }: CreateBookingBody): Promise<BookingWithRelations> {
+  async createBooking({ slotId, clientId }: CreateBookingBody): Promise<BookingWithRelations> {
     const booking = await this.prisma.$transaction(async (tx) => {
       await this.lockService.acquireSlotLock(tx, slotId);
 
@@ -55,9 +52,7 @@ export class BookingService {
     return booking;
   }
 
-  async listBookings(
-    query: ListBookingsQuery = {},
-  ): Promise<BookingWithRelations[]> {
+  async listBookings(query: ListBookingsQuery = {}): Promise<BookingWithRelations[]> {
     return this.prisma.booking.findMany({
       where: {
         ...(query.clientId !== undefined ? { clientId: query.clientId } : {}),
@@ -87,9 +82,7 @@ export class BookingService {
    */
   async cancelBooking(id: string): Promise<BookingWithRelations> {
     return this.prisma.$transaction(async (tx) => {
-      const rows = await tx.$queryRaw<
-        Array<{ id: string; status: string; slot_id: string }>
-      >`
+      const rows = await tx.$queryRaw<Array<{ id: string; status: string; slot_id: string }>>`
         SELECT id, status, slot_id
         FROM bookings
         WHERE id = ${id}::uuid
@@ -102,11 +95,7 @@ export class BookingService {
       }
 
       if (locked.status === "CANCELLED") {
-        throw new NotFoundError(
-          "Booking",
-          id,
-          "Booking is already cancelled.",
-        );
+        throw new NotFoundError("Booking", id, "Booking is already cancelled.");
       }
 
       const booking = await tx.booking.update({
@@ -131,9 +120,7 @@ export class BookingService {
    * Persist PENDING NotificationJob and enqueue BullMQ `booking.confirmation`.
    * Errors are logged and swallowed so the HTTP response stays 201.
    */
-  private async enqueueConfirmationSafe(
-    booking: BookingWithRelations,
-  ): Promise<void> {
+  private async enqueueConfirmationSafe(booking: BookingWithRelations): Promise<void> {
     const payload: BookingConfirmationJobPayload = {
       bookingId: booking.id,
       clientEmail: booking.client.email,
@@ -152,20 +139,20 @@ export class BookingService {
         },
       });
     } catch (err) {
-      console.error(
-        "[BookingService] Failed to persist NotificationJob after commit",
-        { bookingId: booking.id, err },
-      );
+      console.error("[BookingService] Failed to persist NotificationJob after commit", {
+        bookingId: booking.id,
+        err,
+      });
     }
 
     try {
       await enqueueBookingConfirmation(payload);
     } catch (err) {
       // Redis/BullMQ outages must not fail the booking after COMMIT.
-      console.error(
-        "[BookingService] Failed to enqueue BullMQ booking.confirmation",
-        { bookingId: booking.id, err },
-      );
+      console.error("[BookingService] Failed to enqueue BullMQ booking.confirmation", {
+        bookingId: booking.id,
+        err,
+      });
     }
   }
 }

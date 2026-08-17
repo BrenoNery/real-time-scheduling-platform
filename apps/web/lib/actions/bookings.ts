@@ -4,9 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { getApiUrl } from "@/lib/api";
 
-export type BookingActionResult =
-  | { ok: true }
-  | { ok: false; code: string; message: string };
+export type BookingActionResult = { ok: true } | { ok: false; code: string; message: string };
 
 function networkFailure(err: unknown): BookingActionResult {
   if (err instanceof Error && err.message.includes("API_URL")) {
@@ -42,10 +40,7 @@ function parseApiErrorBody(body: unknown, status: number): BookingActionResult {
   const prismaMessage = isRecord(body) ? body.message : undefined;
   const text = typeof prismaMessage === "string" ? prismaMessage : "";
 
-  if (
-    prismaCode === "P2002" &&
-    (text.includes("slot_id") || text.includes("slotId"))
-  ) {
+  if (prismaCode === "P2002" && (text.includes("slot_id") || text.includes("slotId"))) {
     return {
       ok: false,
       code: "SLOT_UNAVAILABLE",
@@ -73,10 +68,7 @@ async function parseApiError(response: Response): Promise<BookingActionResult> {
   }
 }
 
-export async function bookSlot(
-  slotId: string,
-  clientId: string,
-): Promise<BookingActionResult> {
+export async function bookSlot(slotId: string, clientId: string): Promise<BookingActionResult> {
   let response: Response;
 
   try {
@@ -97,9 +89,7 @@ export async function bookSlot(
   return parseApiError(response);
 }
 
-export async function cancelBooking(
-  bookingId: string,
-): Promise<BookingActionResult> {
+export async function cancelBooking(bookingId: string): Promise<BookingActionResult> {
   let response: Response;
 
   try {

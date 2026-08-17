@@ -40,9 +40,7 @@ export class SlotUnavailableError extends Error {
   }
 }
 
-export function isSlotUnavailableError(
-  error: unknown,
-): error is SlotUnavailableError {
+export function isSlotUnavailableError(error: unknown): error is SlotUnavailableError {
   return (
     error instanceof SlotUnavailableError ||
     (typeof error === "object" &&

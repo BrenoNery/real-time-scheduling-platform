@@ -7,9 +7,7 @@ export function registerHealthRoutes(app: FastifyInstance): void {
       return { status: "ok", db: "connected" };
     } catch (err) {
       request.log.error({ err }, "Database health check failed");
-      return reply
-        .status(503)
-        .send({ status: "degraded", db: "disconnected" });
+      return reply.status(503).send({ status: "degraded", db: "disconnected" });
     }
   });
 }

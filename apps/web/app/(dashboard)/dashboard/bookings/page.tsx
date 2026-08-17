@@ -13,11 +13,7 @@ export const metadata: Metadata = {
   title: "Bookings",
 };
 
-function formatSlotLabel(
-  serviceName: string,
-  startsAt: Date,
-  endsAt: Date,
-): string {
+function formatSlotLabel(serviceName: string, startsAt: Date, endsAt: Date): string {
   const formatter = new Intl.DateTimeFormat("en-US", {
     month: "short",
     day: "numeric",

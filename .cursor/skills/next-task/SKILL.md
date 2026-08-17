@@ -62,12 +62,12 @@ Use Linear MCP tools: `list_issues`, `get_issue`, `list_milestones`, `get_milest
 
 **Milestones (phases):**
 
-| Phase | Issues (Linear ID) |
-|---|---|
-| Phase 1 — Foundation & Data | BRE-33, BRE-34, BRE-35, BRE-44 |
-| Phase 2 — Backend Core & Concurrency | BRE-36, BRE-37, BRE-41 |
-| Phase 3 — Frontend & SSR Dashboard | BRE-38, BRE-40, BRE-43 |
-| Phase 4 — Notifications & Delivery | BRE-45, BRE-42 |
+| Phase                                | Issues (Linear ID)             |
+| ------------------------------------ | ------------------------------ |
+| Phase 1 — Foundation & Data          | BRE-33, BRE-34, BRE-35, BRE-44 |
+| Phase 2 — Backend Core & Concurrency | BRE-36, BRE-37, BRE-41         |
+| Phase 3 — Frontend & SSR Dashboard   | BRE-38, BRE-40, BRE-43         |
+| Phase 4 — Notifications & Delivery   | BRE-45, BRE-42                 |
 
 ### 4. Identify Next Priority Task
 
@@ -107,8 +107,8 @@ Respond in **pt-BR** with this exact structure:
 
 ### Estado atual vs alvo
 
-| Área | Status |
-|---|---|
+| Área         | Status                                  |
+| ------------ | --------------------------------------- |
 | [Componente] | [Implementado / Parcial / Não iniciado] |
 
 ### Prompt de implementação (primário)
@@ -171,41 +171,41 @@ Quando o caso 1 se aplicar, substitua toda a subseção "Alternativa (nativa do 
 
 Use the Cursor effort dial when the model supports it. Recommend one of:
 
-| Nível | Quando usar |
-|---|---|
-| **Low** | Tarefas curtas, baixa ambiguidade, mudanças locais |
-| **Medium** | Escopo moderado, alguns arquivos, decisões limitadas |
-| **High** | Raciocínio profundo, concorrência, modelagem, refactors multiarquivo |
-| **Extra High** | Problemas difíceis de longo curso, muitos edge cases, alto risco |
-| **N/A** | Modelo sem dial de esforço (ex.: Composer 2.5 Fast) — use a variante recomendada do modelo |
+| Nível          | Quando usar                                                                                |
+| -------------- | ------------------------------------------------------------------------------------------ |
+| **Low**        | Tarefas curtas, baixa ambiguidade, mudanças locais                                         |
+| **Medium**     | Escopo moderado, alguns arquivos, decisões limitadas                                       |
+| **High**       | Raciocínio profundo, concorrência, modelagem, refactors multiarquivo                       |
+| **Extra High** | Problemas difíceis de longo curso, muitos edge cases, alto risco                           |
+| **N/A**        | Modelo sem dial de esforço (ex.: Composer 2.5 Fast) — use a variante recomendada do modelo |
 
 Always state the effort level next to every model recommendation (primary and, when present, alternative).
 
 ## Model Selection Guide
 
-| Task Type | Recommended Model | Effort | Rationale |
-|---|---|---|---|
-| Scaffolding, config, Docker, CI | **Composer 2.5 Fast** | **N/A** | Fast iteration on boilerplate with low ambiguity |
-| Database schema, Prisma, migrations | **Claude Sonnet 4.6 Thinking** | **High** | Strong reasoning for data modeling and constraints |
-| Concurrency / locking logic | **Claude Opus 4.8 Thinking** | **Extra High** | Deep reasoning for race conditions and transaction boundaries |
-| Next.js SSR, Server Components, UI | **Claude Sonnet 4.6 Thinking** | **High** | Excellent React/Next.js patterns and component architecture |
-| BullMQ, workers, async pipelines | **GPT-5.3 Codex** | **High** | Strong systems programming and queue semantics |
-| Integration tests, E2E | **Claude Sonnet 4.6 Thinking** | **Medium** | Good at test design and edge case coverage |
-| Complex multi-file refactors | **Claude Opus 4.8 Thinking** | **Extra High** | Best for cross-cutting changes with many dependencies |
+| Task Type                           | Recommended Model              | Effort         | Rationale                                                     |
+| ----------------------------------- | ------------------------------ | -------------- | ------------------------------------------------------------- |
+| Scaffolding, config, Docker, CI     | **Composer 2.5 Fast**          | **N/A**        | Fast iteration on boilerplate with low ambiguity              |
+| Database schema, Prisma, migrations | **Claude Sonnet 4.6 Thinking** | **High**       | Strong reasoning for data modeling and constraints            |
+| Concurrency / locking logic         | **Claude Opus 4.8 Thinking**   | **Extra High** | Deep reasoning for race conditions and transaction boundaries |
+| Next.js SSR, Server Components, UI  | **Claude Sonnet 4.6 Thinking** | **High**       | Excellent React/Next.js patterns and component architecture   |
+| BullMQ, workers, async pipelines    | **GPT-5.3 Codex**              | **High**       | Strong systems programming and queue semantics                |
+| Integration tests, E2E              | **Claude Sonnet 4.6 Thinking** | **Medium**     | Good at test design and edge case coverage                    |
+| Complex multi-file refactors        | **Claude Opus 4.8 Thinking**   | **Extra High** | Best for cross-cutting changes with many dependencies         |
 
 ## Alternative Model Selection Guide (Cursor-native only)
 
 Use this **only** when the primary model is **not** Composer or Grok. Pick exactly one:
 
-| Task Type | Alternative Model | Effort | Prompt adaptation focus |
-|---|---|---|---|
-| Scaffolding, config, Docker, CI | **Composer 2.5 Fast** | **N/A** | Short sequential checklist; exact file paths; copy-pasteable commands |
-| Database schema, Prisma, migrations | **Grok 4.5** | **High** | Explicit entity/relation table; migration safety steps; validation queries |
-| Concurrency / locking logic | **Grok 4.5** | **Extra High** | Scenario matrix (race cases); step-by-step locking protocol; failure modes |
-| Next.js SSR, Server Components, UI | **Composer 2.5 Fast** | **N/A** | Component/file tree first; SSR vs client boundaries listed; a11y/acceptance checks |
-| BullMQ, workers, async pipelines | **Grok 4.5** | **High** | Queue topology diagram in text; retry/idempotency rules; job payload contracts |
-| Integration tests, E2E | **Composer 2.5 Fast** | **N/A** | Test cases enumerated; setup/teardown steps; expected assertions |
-| Complex multi-file refactors | **Grok 4.5** | **Extra High** | Ordered change plan per file; dependency order; post-refactor verification |
+| Task Type                           | Alternative Model     | Effort         | Prompt adaptation focus                                                            |
+| ----------------------------------- | --------------------- | -------------- | ---------------------------------------------------------------------------------- |
+| Scaffolding, config, Docker, CI     | **Composer 2.5 Fast** | **N/A**        | Short sequential checklist; exact file paths; copy-pasteable commands              |
+| Database schema, Prisma, migrations | **Grok 4.5**          | **High**       | Explicit entity/relation table; migration safety steps; validation queries         |
+| Concurrency / locking logic         | **Grok 4.5**          | **Extra High** | Scenario matrix (race cases); step-by-step locking protocol; failure modes         |
+| Next.js SSR, Server Components, UI  | **Composer 2.5 Fast** | **N/A**        | Component/file tree first; SSR vs client boundaries listed; a11y/acceptance checks |
+| BullMQ, workers, async pipelines    | **Grok 4.5**          | **High**       | Queue topology diagram in text; retry/idempotency rules; job payload contracts     |
+| Integration tests, E2E              | **Composer 2.5 Fast** | **N/A**        | Test cases enumerated; setup/teardown steps; expected assertions                   |
+| Complex multi-file refactors        | **Grok 4.5**          | **Extra High** | Ordered change plan per file; dependency order; post-refactor verification         |
 
 **Adaptation principles for the alternative prompt:**
 

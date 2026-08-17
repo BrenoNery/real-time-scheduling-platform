@@ -1,10 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import {
-  NotificationStatus,
-  NotificationType,
-  type Prisma,
-} from "@repo/database";
+import { NotificationStatus, NotificationType, type Prisma } from "@repo/database";
 import type { BookingConfirmationJobPayload } from "../src/queues/notification.queue.js";
 import { EmailService } from "../src/services/email.service.js";
 import {
@@ -213,11 +209,7 @@ describe("isFinalAttempt / updateConfirmationJobs", () => {
     ];
     const store = createFakeStore(rows);
 
-    const count = await updateConfirmationJobs(
-      store,
-      payload.bookingId,
-      NotificationStatus.FAILED,
-    );
+    const count = await updateConfirmationJobs(store, payload.bookingId, NotificationStatus.FAILED);
 
     assert.equal(count, 0);
     assert.equal(rows[0]!.status, NotificationStatus.SENT);

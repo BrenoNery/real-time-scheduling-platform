@@ -57,17 +57,12 @@ export async function processBookingConfirmation(
 ): Promise<void> {
   await mailer.sendConfirmation(payload);
 
-  const updated = await updateConfirmationJobs(
-    store,
-    payload.bookingId,
-    NotificationStatus.SENT,
-  );
+  const updated = await updateConfirmationJobs(store, payload.bookingId, NotificationStatus.SENT);
 
   if (updated === 0) {
-    console.warn(
-      "[NotificationWorker] No PENDING CONFIRMATION NotificationJob to mark SENT",
-      { bookingId: payload.bookingId },
-    );
+    console.warn("[NotificationWorker] No PENDING CONFIRMATION NotificationJob to mark SENT", {
+      bookingId: payload.bookingId,
+    });
   }
 }
 
@@ -81,17 +76,12 @@ export async function handleFinalConfirmationFailure(
   store: NotificationJobStore,
   enqueueDlq?: (payload: BookingConfirmationJobPayload) => Promise<void>,
 ): Promise<void> {
-  const updated = await updateConfirmationJobs(
-    store,
-    payload.bookingId,
-    NotificationStatus.FAILED,
-  );
+  const updated = await updateConfirmationJobs(store, payload.bookingId, NotificationStatus.FAILED);
 
   if (updated === 0) {
-    console.warn(
-      "[NotificationWorker] No PENDING CONFIRMATION NotificationJob to mark FAILED",
-      { bookingId: payload.bookingId },
-    );
+    console.warn("[NotificationWorker] No PENDING CONFIRMATION NotificationJob to mark FAILED", {
+      bookingId: payload.bookingId,
+    });
   }
 
   if (enqueueDlq) {
