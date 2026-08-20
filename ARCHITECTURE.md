@@ -503,12 +503,13 @@ The following Issues live in the Linear project **[Real-Time Scheduling Platform
 
 ### Development Phases (Milestones)
 
-| Milestone                                | Target     | Issues (Linear ID)             | Goal                                      |
-| ---------------------------------------- | ---------- | ------------------------------ | ----------------------------------------- |
-| **Phase 1 — Foundation & Data**          | 2026-07-26 | BRE-33, BRE-34, BRE-35, BRE-44 | Monorepo, infra, Prisma schema, seed data |
-| **Phase 2 — Backend Core & Concurrency** | 2026-08-09 | BRE-36, BRE-37, BRE-41         | Fastify API, locking PoC, booking CRUD    |
-| **Phase 3 — Frontend & SSR Dashboard**   | 2026-08-23 | BRE-38, BRE-40, BRE-43         | Next.js, SSR dashboard, Server Actions    |
-| **Phase 4 — Notifications & Delivery**   | 2026-09-06 | BRE-45, BRE-42                 | BullMQ email worker, CI pipeline          |
+| Milestone                                   | Target     | Issues (Linear ID)                        | Goal                                                          |
+| ------------------------------------------- | ---------- | ----------------------------------------- | ------------------------------------------------------------- |
+| **Phase 1 — Foundation & Data**             | 2026-07-26 | BRE-33, BRE-34, BRE-35, BRE-44            | Monorepo, infra, Prisma schema, seed data                     |
+| **Phase 2 — Backend Core & Concurrency**    | 2026-08-09 | BRE-36, BRE-37, BRE-41                    | Fastify API, locking PoC, booking CRUD                        |
+| **Phase 3 — Frontend & SSR Dashboard**      | 2026-08-23 | BRE-38, BRE-40, BRE-43                    | Next.js, SSR dashboard, Server Actions                        |
+| **Phase 4 — Notifications & Delivery**      | 2026-09-06 | BRE-45, BRE-42                            | BullMQ email worker, CI pipeline                              |
+| **Phase 5 — Availability & Public Booking** | 2026-09-20 | BRE-76, BRE-77, BRE-78, BRE-79, BRE-80    | Rebookable cancel, slots API, public `/book`, cancel email, E2E |
 
 ### Doc → Linear ID Mapping
 
@@ -526,6 +527,11 @@ The following Issues live in the Linear project **[Real-Time Scheduling Platform
 | BRE-10  | BRE-43    | Phase 3   |
 | BRE-11  | BRE-44    | Phase 1   |
 | BRE-12  | BRE-42    | Phase 4   |
+| BRE-13  | BRE-76    | Phase 5   |
+| BRE-14  | BRE-77    | Phase 5   |
+| BRE-15  | BRE-78    | Phase 5   |
+| BRE-16  | BRE-79    | Phase 5   |
+| BRE-17  | BRE-80    | Phase 5   |
 
 ---
 
@@ -750,6 +756,107 @@ Configure GitHub Actions workflow that runs lint, type-check, unit tests, and bu
 
 ---
 
+### BRE-13 · `[Database]` Rebookable slot cancellations
+
+**Priority:** Urgent  
+**Estimate:** 3 points  
+**Linear:** [BRE-76](https://linear.app/breno-nery/issue/BRE-76/database-rebookable-slot-cancellations)
+
+**Description:**  
+Cancel currently marks `TimeSlot.status = AVAILABLE` but the cancelled `Booking` row still occupies `slot_id`. The unique constraint then rejects a new booking. Restore the documented contract: cancelling a booking frees the slot for a new booking.
+
+**Acceptance Criteria:**
+
+- [ ] At most one non-cancelled booking exists per slot (partial unique index or equivalent)
+- [ ] `DELETE /bookings/:id` still soft-cancels (status `CANCELLED`, `cancelledAt` set, slot `AVAILABLE`)
+- [ ] After cancel, `POST /bookings` on the same slot succeeds for a new client
+- [ ] Integration tests cover cancel-then-rebook and still prevent two `CONFIRMED` bookings on one slot
+- [ ] Dashboard no longer needs the `booking: { is: null }` workaround for `AVAILABLE` slots
+- [ ] Existing seed and historical `CANCELLED` rows migrate cleanly
+
+---
+
+### BRE-14 · `[Backend]` Slot availability API & advisory locks
+
+**Priority:** High  
+**Estimate:** 5 points  
+**Blocked by:** BRE-13  
+**Linear:** [BRE-77](https://linear.app/breno-nery/issue/BRE-77/backend-slot-availability-api-and-advisory-locks)
+
+**Description:**  
+Implement `routes/slots.ts` and advisory locks for bulk slot generation so the public booking flow can list and generate availability without duplicating slots under concurrency.
+
+**Acceptance Criteria:**
+
+- [ ] `GET /slots` lists slots with Zod-validated filters (`serviceId`, date range, `status`)
+- [ ] `POST /slots/generate` creates slots for a day or range and uses `pg_advisory_xact_lock` keyed by service + date
+- [ ] Concurrent generate requests do not create duplicate overlapping slots
+- [ ] Blocking a slot (`BLOCKED`) is supported; booking remains the only path to `BOOKED`
+- [ ] Shared Zod schemas live in `@repo/shared`; errors use the existing envelope
+- [ ] Integration tests for list, generate, duplicate prevention, and advisory-lock concurrency
+
+---
+
+### BRE-15 · `[Backend]` Cancellation notification jobs
+
+**Priority:** Medium  
+**Estimate:** 3 points  
+**Linear:** [BRE-78](https://linear.app/breno-nery/issue/BRE-78/backend-cancellation-notification-jobs)
+
+**Description:**  
+`NotificationType` already includes `CANCELLATION`, but `cancelBooking` does not enqueue a job. Mirror the confirmation pipeline: persist a `NotificationJob`, enqueue BullMQ after COMMIT, and send email via the existing adapter.
+
+**Acceptance Criteria:**
+
+- [ ] Successful cancel enqueues `booking.cancellation` with an idempotent job ID
+- [ ] Worker sends a cancellation email (Mailpit in dev)
+- [ ] Queue/SMTP failures do not fail the cancel HTTP response
+- [ ] Retries and DLQ match the confirmation worker configuration
+- [ ] Tests cover enqueue-on-cancel and worker send
+
+---
+
+### BRE-16 · `[Frontend]` Public booking flow `/book`
+
+**Priority:** High  
+**Estimate:** 5 points  
+**Blocked by:** BRE-13, BRE-14  
+**Linear:** [BRE-79](https://linear.app/breno-nery/issue/BRE-79/frontend-public-booking-flow-book)
+
+**Description:**  
+Add `app/(public)/book/` with `SlotGrid` and `BookingForm`. Clients currently have no booking UX; the dashboard form is an admin-style slot + client picker.
+
+**Acceptance Criteria:**
+
+- [ ] `/book` (and `/book/[serviceId]` if useful) renders available slots via Server Components
+- [ ] `SlotGrid` displays `AVAILABLE` slots; `BookingForm` collects client name + email
+- [ ] Booking creates-or-finds a `CLIENT` user by email, then calls `POST /bookings`
+- [ ] Conflicts surface as toast (`409 SLOT_UNAVAILABLE`); success revalidates the page
+- [ ] Home page links to the public flow (no “coming soon” copy)
+- [ ] Empty state when the service has no available slots
+
+---
+
+### BRE-17 · `[DevOps]` Playwright E2E booking flow
+
+**Priority:** Medium  
+**Estimate:** 5 points  
+**Blocked by:** BRE-16  
+**Linear:** [BRE-80](https://linear.app/breno-nery/issue/BRE-80/devops-playwright-e2e-booking-flow)
+
+**Description:**  
+Add Playwright covering public book → success UX, and wire it into GitHub Actions.
+
+**Acceptance Criteria:**
+
+- [ ] Playwright is configured in the monorepo for `apps/web`
+- [ ] E2E covers: open `/book`, select an available slot, submit the form, see success
+- [ ] E2E covers a conflict or empty state at least once
+- [ ] GitHub Actions job runs E2E against migrated seed data (Postgres + Redis + Mailpit as needed)
+- [ ] Specs are deterministic (seeded slots, no wall-clock flake)
+
+---
+
 ## Issue Dependency Graph
 
 ```mermaid
@@ -766,6 +873,11 @@ flowchart TD
     BRE10["BRE-10<br/>Server Actions"]
     BRE11["BRE-11<br/>Seed Data"]
     BRE12["BRE-12<br/>CI Pipeline"]
+    BRE13["BRE-13<br/>Rebookable Cancel"]
+    BRE14["BRE-14<br/>Slots API"]
+    BRE15["BRE-15<br/>Cancel Email"]
+    BRE16["BRE-16<br/>Public /book"]
+    BRE17["BRE-17<br/>Playwright E2E"]
 
     BRE1 --> BRE2
     BRE1 --> BRE3
@@ -785,6 +897,12 @@ flowchart TD
     BRE3 --> BRE7
     BRE7 --> BRE10
     BRE9 --> BRE10
+    BRE9 --> BRE13
+    BRE13 --> BRE14
+    BRE9 --> BRE15
+    BRE13 --> BRE16
+    BRE14 --> BRE16
+    BRE16 --> BRE17
 ```
 
-**Recommended execution order:** BRE-1 → BRE-2 → BRE-3 → (BRE-4 ∥ BRE-6) → BRE-5 → BRE-7 → BRE-8 → BRE-9 → BRE-10 → BRE-11 → BRE-12
+**Recommended execution order:** BRE-1 → BRE-2 → BRE-3 → (BRE-4 ∥ BRE-6) → BRE-5 → BRE-7 → BRE-8 → BRE-9 → BRE-10 → BRE-11 → BRE-12 → BRE-13 → (BRE-14 ∥ BRE-15) → BRE-16 → BRE-17
