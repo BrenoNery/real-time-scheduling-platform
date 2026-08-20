@@ -503,13 +503,13 @@ The following Issues live in the Linear project **[Real-Time Scheduling Platform
 
 ### Development Phases (Milestones)
 
-| Milestone                                   | Target     | Issues (Linear ID)                        | Goal                                                          |
-| ------------------------------------------- | ---------- | ----------------------------------------- | ------------------------------------------------------------- |
-| **Phase 1 — Foundation & Data**             | 2026-07-26 | BRE-33, BRE-34, BRE-35, BRE-44            | Monorepo, infra, Prisma schema, seed data                     |
-| **Phase 2 — Backend Core & Concurrency**    | 2026-08-09 | BRE-36, BRE-37, BRE-41                    | Fastify API, locking PoC, booking CRUD                        |
-| **Phase 3 — Frontend & SSR Dashboard**      | 2026-08-23 | BRE-38, BRE-40, BRE-43                    | Next.js, SSR dashboard, Server Actions                        |
-| **Phase 4 — Notifications & Delivery**      | 2026-09-06 | BRE-45, BRE-42                            | BullMQ email worker, CI pipeline                              |
-| **Phase 5 — Availability & Public Booking** | 2026-09-20 | BRE-76, BRE-77, BRE-78, BRE-79, BRE-80    | Rebookable cancel, slots API, public `/book`, cancel email, E2E |
+| Milestone                                   | Target     | Issues (Linear ID)                     | Goal                                                            |
+| ------------------------------------------- | ---------- | -------------------------------------- | --------------------------------------------------------------- |
+| **Phase 1 — Foundation & Data**             | 2026-07-26 | BRE-33, BRE-34, BRE-35, BRE-44         | Monorepo, infra, Prisma schema, seed data                       |
+| **Phase 2 — Backend Core & Concurrency**    | 2026-08-09 | BRE-36, BRE-37, BRE-41                 | Fastify API, locking PoC, booking CRUD                          |
+| **Phase 3 — Frontend & SSR Dashboard**      | 2026-08-23 | BRE-38, BRE-40, BRE-43                 | Next.js, SSR dashboard, Server Actions                          |
+| **Phase 4 — Notifications & Delivery**      | 2026-09-06 | BRE-45, BRE-42                         | BullMQ email worker, CI pipeline                                |
+| **Phase 5 — Availability & Public Booking** | 2026-09-20 | BRE-76, BRE-77, BRE-78, BRE-79, BRE-80 | Rebookable cancel, slots API, public `/book`, cancel email, E2E |
 
 ### Doc → Linear ID Mapping
 
