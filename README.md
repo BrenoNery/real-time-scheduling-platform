@@ -287,6 +287,16 @@ The following Issues are planned for creation in Linear upon documentation appro
 | 🟢 Low    | Seed data & demo scenarios           | `[Database]` |
 | 🟢 Low    | CI pipeline (lint, test, build)      | `[DevOps]`   |
 
+Phases 1–4 of that initial roadmap are **complete**. The active milestone is **Phase 5 — Availability & Public Booking**:
+
+| Priority  | Issue                                  | Context      | Linear |
+| --------- | -------------------------------------- | ------------ | ------ |
+| 🔴 Urgent | Rebookable slot cancellations          | `[Database]` | BRE-76 |
+| 🟠 High   | Slot availability API & advisory locks | `[Backend]`  | BRE-77 |
+| 🟠 High   | Public booking flow `/book`            | `[Frontend]` | BRE-79 |
+| 🟡 Medium | Cancellation notification jobs         | `[Backend]`  | BRE-78 |
+| 🟡 Medium | Playwright E2E booking flow            | `[DevOps]`   | BRE-80 |
+
 ---
 
 ## License

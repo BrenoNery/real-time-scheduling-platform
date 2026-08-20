@@ -62,12 +62,13 @@ Use Linear MCP tools: `list_issues`, `get_issue`, `list_milestones`, `get_milest
 
 **Milestones (phases):**
 
-| Phase                                | Issues (Linear ID)             |
-| ------------------------------------ | ------------------------------ |
-| Phase 1 — Foundation & Data          | BRE-33, BRE-34, BRE-35, BRE-44 |
-| Phase 2 — Backend Core & Concurrency | BRE-36, BRE-37, BRE-41         |
-| Phase 3 — Frontend & SSR Dashboard   | BRE-38, BRE-40, BRE-43         |
-| Phase 4 — Notifications & Delivery   | BRE-45, BRE-42                 |
+| Phase                                   | Issues (Linear ID)                     |
+| --------------------------------------- | -------------------------------------- |
+| Phase 1 — Foundation & Data             | BRE-33, BRE-34, BRE-35, BRE-44         |
+| Phase 2 — Backend Core & Concurrency    | BRE-36, BRE-37, BRE-41                 |
+| Phase 3 — Frontend & SSR Dashboard      | BRE-38, BRE-40, BRE-43                 |
+| Phase 4 — Notifications & Delivery      | BRE-45, BRE-42                         |
+| Phase 5 — Availability & Public Booking | BRE-76, BRE-77, BRE-78, BRE-79, BRE-80 |
 
 ### 4. Identify Next Priority Task
 
@@ -84,6 +85,7 @@ Phase 1: BRE-33 → BRE-34 → BRE-35 → BRE-44
 Phase 2: BRE-36 → BRE-37 → BRE-41
 Phase 3: BRE-38 → BRE-40 → BRE-43
 Phase 4: BRE-45 → BRE-42
+Phase 5: BRE-76 → (BRE-77 ∥ BRE-78) → BRE-79 → BRE-80
 ```
 
 Complete the active phase before pulling work from a later phase (unless a later-phase issue is fully unblocked and the user explicitly wants to parallelize).
