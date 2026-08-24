@@ -5,9 +5,10 @@ description: >-
   user asks exactly "Qual a próxima tarefa?" or "What's the next task?" to
   analyze code, docs, and Linear issues and recommend the next priority task
   with ready-to-use implementation prompts and model recommendations (primary
-  plus, when needed, a Cursor-native Composer/Grok alternative), including
-  recommended effort level. Always reply to the user in Brazilian Portuguese
-  (pt-BR).
+  plus, when needed, a Cursor-native Composer/Grok alternative). Resolve the
+  latest Cursor-native and API-quota models and effort levels available in the
+  current session before naming them. Always reply to the user in Brazilian
+  Portuguese (pt-BR).
 ---
 
 # Next Task Copilot
@@ -90,7 +91,33 @@ Phase 5: BRE-76 → (BRE-77 ∥ BRE-78) → BRE-79 → BRE-80
 
 Complete the active phase before pulling work from a later phase (unless a later-phase issue is fully unblocked and the user explicitly wants to parallelize).
 
-### 5. Generate Execution Artifacts
+### 5. Resolve current model catalog and effort dial (mandatory)
+
+Do **not** copy version numbers from this skill’s tables into the user-facing recommendation. Those tables name **families and capabilities**. Pin a **concrete, current** model only after discovering what this Cursor session can offer.
+
+**Discover the live catalog** (stop at the first source that is complete enough to pick):
+
+1. **This session (preferred):** inspect the current agent/tool schemas and instructions for an enumerated model list (for example Task/subagent `model` slugs, or any “available models” list). Classify each entry:
+   - **Cursor-native:** Composer and Grok (including `composer-*`, `cursor-grok-*`, `grok-*`).
+   - **API-quota:** third-party models billed against the user’s API quota (Claude, GPT, Gemini, and others).
+2. **Product docs:** if the session list is missing, incomplete, or looks frozen, use the Cursor product docs / `cursor-guide` skill for the current model picker.
+3. **Short web check:** only if (1) and (2) fail. Do not invent versions.
+
+**Pick “latest” inside a family:**
+
+- Prefer the **newest generation present in the catalog** (higher major.minor: Grok 4.6 beats Grok 4.5; Claude Opus 5 beats Opus 4.8).
+- Keep the **capability** required by the task-type table (Thinking, Fast, Codex, etc.). If the newest generation lacks that variant, use the newest generation that has it.
+- Speak to the user with **picker display names** (e.g. “Grok 4.6”, “Claude Sonnet 4.6 Thinking”), not kebab-case slugs, unless the user used slugs.
+- A live catalog that is newer than any example in this file **always wins**.
+
+**Effort dial:**
+
+- Recommend a level the **chosen model actually exposes** in the current UI: Low, Medium, High, Extra High, or N/A.
+- Match the task-type table. If the table says Extra High and that level exists, use it — do not cap at High because an older example did.
+- Do **not** bump High → Extra High only because Extra High exists.
+- If the table wants Extra High but the model’s max is High, recommend High and note the gap in one sentence.
+
+### 6. Generate Execution Artifacts
 
 Respond in **pt-BR** with this exact structure:
 
@@ -132,7 +159,7 @@ boundaries if needed.]
 
 ### Alternativa (nativa do Cursor: Composer ou Grok)
 
-**Modelos nativos do Cursor:** Composer (ex.: Composer 2.5 Fast) e Grok (ex.: Grok 4.5).
+**Modelos nativos do Cursor:** famílias Composer e Grok — use as **versões mais recentes** encontradas no passo 5 (não as versões de exemplo deste arquivo).
 
 Aplique a regra abaixo:
 
@@ -179,35 +206,41 @@ Use the Cursor effort dial when the model supports it. Recommend one of:
 | **Medium**     | Escopo moderado, alguns arquivos, decisões limitadas                                       |
 | **High**       | Raciocínio profundo, concorrência, modelagem, refactors multiarquivo                       |
 | **Extra High** | Problemas difíceis de longo curso, muitos edge cases, alto risco                           |
-| **N/A**        | Modelo sem dial de esforço (ex.: Composer 2.5 Fast) — use a variante recomendada do modelo |
+| **N/A**        | Modelo sem dial de esforço (ex.: variante Fast do Composer) — use a variante recomendada do modelo |
 
-Always state the effort level next to every model recommendation (primary and, when present, alternative).
+Always state the effort level next to every model recommendation (primary and, when present, alternative). Resolve the **current** max effort for that model in step 5; do not freeze the dial at High.
 
 ## Model Selection Guide
 
-| Task Type                           | Recommended Model              | Effort         | Rationale                                                     |
-| ----------------------------------- | ------------------------------ | -------------- | ------------------------------------------------------------- |
-| Scaffolding, config, Docker, CI     | **Composer 2.5 Fast**          | **N/A**        | Fast iteration on boilerplate with low ambiguity              |
-| Database schema, Prisma, migrations | **Claude Sonnet 4.6 Thinking** | **High**       | Strong reasoning for data modeling and constraints            |
-| Concurrency / locking logic         | **Claude Opus 4.8 Thinking**   | **Extra High** | Deep reasoning for race conditions and transaction boundaries |
-| Next.js SSR, Server Components, UI  | **Claude Sonnet 4.6 Thinking** | **High**       | Excellent React/Next.js patterns and component architecture   |
-| BullMQ, workers, async pipelines    | **GPT-5.3 Codex**              | **High**       | Strong systems programming and queue semantics                |
-| Integration tests, E2E              | **Claude Sonnet 4.6 Thinking** | **Medium**     | Good at test design and edge case coverage                    |
-| Complex multi-file refactors        | **Claude Opus 4.8 Thinking**   | **Extra High** | Best for cross-cutting changes with many dependencies         |
+Rows are **families + default effort**. After step 5, name the **latest available** model in that family that still has the required capability. Examples in parentheses are **fallbacks only**.
+
+| Task Type                           | Family (primary)                         | Effort         | Rationale                                                     |
+| ----------------------------------- | ---------------------------------------- | -------------- | ------------------------------------------------------------- |
+| Scaffolding, config, Docker, CI     | **Composer Fast** (native)               | **N/A**        | Fast iteration on boilerplate with low ambiguity              |
+| Database schema, Prisma, migrations | **Claude Sonnet Thinking** (API quota)   | **High**       | Strong reasoning for data modeling and constraints            |
+| Concurrency / locking logic         | **Claude Opus Thinking** (API quota)     | **Extra High** | Deep reasoning for race conditions and transaction boundaries |
+| Next.js SSR, Server Components, UI  | **Claude Sonnet Thinking** (API quota)   | **High**       | Excellent React/Next.js patterns and component architecture   |
+| BullMQ, workers, async pipelines    | **GPT Codex** (or latest GPT coding)     | **High**       | Strong systems programming and queue semantics                |
+| Integration tests, E2E              | **Claude Sonnet Thinking** (API quota)   | **Medium**     | Good at test design and edge case coverage                    |
+| Complex multi-file refactors        | **Claude Opus Thinking** (API quota)     | **Extra High** | Best for cross-cutting changes with many dependencies         |
+
+Fallback examples if discovery fails: Composer 2.5 Fast; Claude Sonnet 4.6 Thinking; Claude Opus 4.8 Thinking; GPT-5.3 Codex. Replace them whenever the catalog is newer.
 
 ## Alternative Model Selection Guide (Cursor-native only)
 
-Use this **only** when the primary model is **not** Composer or Grok. Pick exactly one:
+Use this **only** when the primary model is **not** Composer or Grok. Pick exactly one family, then the **latest** Composer or Grok variant from step 5.
 
-| Task Type                           | Alternative Model     | Effort         | Prompt adaptation focus                                                            |
+| Task Type                           | Family (alternative)  | Effort         | Prompt adaptation focus                                                            |
 | ----------------------------------- | --------------------- | -------------- | ---------------------------------------------------------------------------------- |
-| Scaffolding, config, Docker, CI     | **Composer 2.5 Fast** | **N/A**        | Short sequential checklist; exact file paths; copy-pasteable commands              |
-| Database schema, Prisma, migrations | **Grok 4.5**          | **High**       | Explicit entity/relation table; migration safety steps; validation queries         |
-| Concurrency / locking logic         | **Grok 4.5**          | **Extra High** | Scenario matrix (race cases); step-by-step locking protocol; failure modes         |
-| Next.js SSR, Server Components, UI  | **Composer 2.5 Fast** | **N/A**        | Component/file tree first; SSR vs client boundaries listed; a11y/acceptance checks |
-| BullMQ, workers, async pipelines    | **Grok 4.5**          | **High**       | Queue topology diagram in text; retry/idempotency rules; job payload contracts     |
-| Integration tests, E2E              | **Composer 2.5 Fast** | **N/A**        | Test cases enumerated; setup/teardown steps; expected assertions                   |
-| Complex multi-file refactors        | **Grok 4.5**          | **Extra High** | Ordered change plan per file; dependency order; post-refactor verification         |
+| Scaffolding, config, Docker, CI     | **Composer Fast**     | **N/A**        | Short sequential checklist; exact file paths; copy-pasteable commands              |
+| Database schema, Prisma, migrations | **Grok**              | **High**       | Explicit entity/relation table; migration safety steps; validation queries         |
+| Concurrency / locking logic         | **Grok**              | **Extra High** | Scenario matrix (race cases); step-by-step locking protocol; failure modes         |
+| Next.js SSR, Server Components, UI  | **Composer Fast**     | **N/A**        | Component/file tree first; SSR vs client boundaries listed; a11y/acceptance checks |
+| BullMQ, workers, async pipelines    | **Grok**              | **High**       | Queue topology diagram in text; retry/idempotency rules; job payload contracts     |
+| Integration tests, E2E              | **Composer Fast**     | **N/A**        | Test cases enumerated; setup/teardown steps; expected assertions                   |
+| Complex multi-file refactors        | **Grok**              | **Extra High** | Ordered change plan per file; dependency order; post-refactor verification         |
+
+Fallback examples if discovery fails: Composer 2.5 Fast; Grok 4.6 (not an older Grok if a newer one is in the catalog).
 
 **Adaptation principles for the alternative prompt:**
 
@@ -223,7 +256,8 @@ Use this **only** when the primary model is **not** Composer or Grok. Pick exact
 - Never recommend a task whose blockers are incomplete unless explicitly overriding with user approval.
 - Always cite specific files/evidence from the codebase when describing current state.
 - Both implementation prompts (primary and, when present, alternative) must be self-contained — the user should not need to add context.
-- Always include the recommended **effort level** for every model suggestion.
+- Always include the recommended **effort level** for every model suggestion, using the live dial from step 5.
+- Never recommend a stale pinned version from this skill when a newer Composer, Grok, Claude, or GPT is in the live catalog.
 - If the primary model is Composer or Grok, do not invent a redundant Cursor-native alternative.
 - If all issues are Done, recommend defining the next roadmap phase or hardening tasks (auth, E2E, production deploy).
 - Documentation and commit messages must remain in **English**.
