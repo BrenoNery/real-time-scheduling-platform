@@ -200,12 +200,12 @@ Quando o caso 1 se aplicar, substitua toda a subseção "Alternativa (nativa do 
 
 Use the Cursor effort dial when the model supports it. Recommend one of:
 
-| Nível          | Quando usar                                                                                |
-| -------------- | ------------------------------------------------------------------------------------------ |
-| **Low**        | Tarefas curtas, baixa ambiguidade, mudanças locais                                         |
-| **Medium**     | Escopo moderado, alguns arquivos, decisões limitadas                                       |
-| **High**       | Raciocínio profundo, concorrência, modelagem, refactors multiarquivo                       |
-| **Extra High** | Problemas difíceis de longo curso, muitos edge cases, alto risco                           |
+| Nível          | Quando usar                                                                                        |
+| -------------- | -------------------------------------------------------------------------------------------------- |
+| **Low**        | Tarefas curtas, baixa ambiguidade, mudanças locais                                                 |
+| **Medium**     | Escopo moderado, alguns arquivos, decisões limitadas                                               |
+| **High**       | Raciocínio profundo, concorrência, modelagem, refactors multiarquivo                               |
+| **Extra High** | Problemas difíceis de longo curso, muitos edge cases, alto risco                                   |
 | **N/A**        | Modelo sem dial de esforço (ex.: variante Fast do Composer) — use a variante recomendada do modelo |
 
 Always state the effort level next to every model recommendation (primary and, when present, alternative). Resolve the **current** max effort for that model in step 5; do not freeze the dial at High.
@@ -214,15 +214,15 @@ Always state the effort level next to every model recommendation (primary and, w
 
 Rows are **families + default effort**. After step 5, name the **latest available** model in that family that still has the required capability. Examples in parentheses are **fallbacks only**.
 
-| Task Type                           | Family (primary)                         | Effort         | Rationale                                                     |
-| ----------------------------------- | ---------------------------------------- | -------------- | ------------------------------------------------------------- |
-| Scaffolding, config, Docker, CI     | **Composer Fast** (native)               | **N/A**        | Fast iteration on boilerplate with low ambiguity              |
-| Database schema, Prisma, migrations | **Claude Sonnet Thinking** (API quota)   | **High**       | Strong reasoning for data modeling and constraints            |
-| Concurrency / locking logic         | **Claude Opus Thinking** (API quota)     | **Extra High** | Deep reasoning for race conditions and transaction boundaries |
-| Next.js SSR, Server Components, UI  | **Claude Sonnet Thinking** (API quota)   | **High**       | Excellent React/Next.js patterns and component architecture   |
-| BullMQ, workers, async pipelines    | **GPT Codex** (or latest GPT coding)     | **High**       | Strong systems programming and queue semantics                |
-| Integration tests, E2E              | **Claude Sonnet Thinking** (API quota)   | **Medium**     | Good at test design and edge case coverage                    |
-| Complex multi-file refactors        | **Claude Opus Thinking** (API quota)     | **Extra High** | Best for cross-cutting changes with many dependencies         |
+| Task Type                           | Family (primary)                       | Effort         | Rationale                                                     |
+| ----------------------------------- | -------------------------------------- | -------------- | ------------------------------------------------------------- |
+| Scaffolding, config, Docker, CI     | **Composer Fast** (native)             | **N/A**        | Fast iteration on boilerplate with low ambiguity              |
+| Database schema, Prisma, migrations | **Claude Sonnet Thinking** (API quota) | **High**       | Strong reasoning for data modeling and constraints            |
+| Concurrency / locking logic         | **Claude Opus Thinking** (API quota)   | **Extra High** | Deep reasoning for race conditions and transaction boundaries |
+| Next.js SSR, Server Components, UI  | **Claude Sonnet Thinking** (API quota) | **High**       | Excellent React/Next.js patterns and component architecture   |
+| BullMQ, workers, async pipelines    | **GPT Codex** (or latest GPT coding)   | **High**       | Strong systems programming and queue semantics                |
+| Integration tests, E2E              | **Claude Sonnet Thinking** (API quota) | **Medium**     | Good at test design and edge case coverage                    |
+| Complex multi-file refactors        | **Claude Opus Thinking** (API quota)   | **Extra High** | Best for cross-cutting changes with many dependencies         |
 
 Fallback examples if discovery fails: Composer 2.5 Fast; Claude Sonnet 4.6 Thinking; Claude Opus 4.8 Thinking; GPT-5.3 Codex. Replace them whenever the catalog is newer.
 
@@ -230,15 +230,15 @@ Fallback examples if discovery fails: Composer 2.5 Fast; Claude Sonnet 4.6 Think
 
 Use this **only** when the primary model is **not** Composer or Grok. Pick exactly one family, then the **latest** Composer or Grok variant from step 5.
 
-| Task Type                           | Family (alternative)  | Effort         | Prompt adaptation focus                                                            |
-| ----------------------------------- | --------------------- | -------------- | ---------------------------------------------------------------------------------- |
-| Scaffolding, config, Docker, CI     | **Composer Fast**     | **N/A**        | Short sequential checklist; exact file paths; copy-pasteable commands              |
-| Database schema, Prisma, migrations | **Grok**              | **High**       | Explicit entity/relation table; migration safety steps; validation queries         |
-| Concurrency / locking logic         | **Grok**              | **Extra High** | Scenario matrix (race cases); step-by-step locking protocol; failure modes         |
-| Next.js SSR, Server Components, UI  | **Composer Fast**     | **N/A**        | Component/file tree first; SSR vs client boundaries listed; a11y/acceptance checks |
-| BullMQ, workers, async pipelines    | **Grok**              | **High**       | Queue topology diagram in text; retry/idempotency rules; job payload contracts     |
-| Integration tests, E2E              | **Composer Fast**     | **N/A**        | Test cases enumerated; setup/teardown steps; expected assertions                   |
-| Complex multi-file refactors        | **Grok**              | **Extra High** | Ordered change plan per file; dependency order; post-refactor verification         |
+| Task Type                           | Family (alternative) | Effort         | Prompt adaptation focus                                                            |
+| ----------------------------------- | -------------------- | -------------- | ---------------------------------------------------------------------------------- |
+| Scaffolding, config, Docker, CI     | **Composer Fast**    | **N/A**        | Short sequential checklist; exact file paths; copy-pasteable commands              |
+| Database schema, Prisma, migrations | **Grok**             | **High**       | Explicit entity/relation table; migration safety steps; validation queries         |
+| Concurrency / locking logic         | **Grok**             | **Extra High** | Scenario matrix (race cases); step-by-step locking protocol; failure modes         |
+| Next.js SSR, Server Components, UI  | **Composer Fast**    | **N/A**        | Component/file tree first; SSR vs client boundaries listed; a11y/acceptance checks |
+| BullMQ, workers, async pipelines    | **Grok**             | **High**       | Queue topology diagram in text; retry/idempotency rules; job payload contracts     |
+| Integration tests, E2E              | **Composer Fast**    | **N/A**        | Test cases enumerated; setup/teardown steps; expected assertions                   |
+| Complex multi-file refactors        | **Grok**             | **Extra High** | Ordered change plan per file; dependency order; post-refactor verification         |
 
 Fallback examples if discovery fails: Composer 2.5 Fast; Grok 4.6 (not an older Grok if a newer one is in the catalog).
 
