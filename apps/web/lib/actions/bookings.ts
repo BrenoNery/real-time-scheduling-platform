@@ -44,8 +44,7 @@ function parseApiErrorBody(body: unknown, status: number): BookingActionResult {
     return {
       ok: false,
       code: "SLOT_UNAVAILABLE",
-      message:
-        "This slot already has a booking (cancelled bookings still occupy the slot), so it cannot be booked again.",
+      message: "This slot already has an active booking, so it cannot be booked again.",
     };
   }
 

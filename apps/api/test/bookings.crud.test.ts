@@ -20,6 +20,7 @@ describe("Booking API CRUD (BRE-41)", () => {
   let serviceId: string;
   let slotId: string;
   let conflictSlotId: string;
+  let rebookSlotId: string;
   let clientId: string;
   let otherClientId: string;
 
@@ -46,7 +47,7 @@ describe("Booking API CRUD (BRE-41)", () => {
     });
     serviceId = service.id;
 
-    const [slot, conflictSlot] = await Promise.all([
+    const [slot, conflictSlot, rebookSlot] = await Promise.all([
       prisma.timeSlot.create({
         data: {
           serviceId,
@@ -63,9 +64,18 @@ describe("Booking API CRUD (BRE-41)", () => {
           status: SlotStatus.AVAILABLE,
         },
       }),
+      prisma.timeSlot.create({
+        data: {
+          serviceId,
+          startsAt: new Date(Date.UTC(2031, 0, 1, 12, 0, 0)),
+          endsAt: new Date(Date.UTC(2031, 0, 1, 12, 30, 0)),
+          status: SlotStatus.AVAILABLE,
+        },
+      }),
     ]);
     slotId = slot.id;
     conflictSlotId = conflictSlot.id;
+    rebookSlotId = rebookSlot.id;
 
     const [client, otherClient] = await Promise.all([
       prisma.user.create({
@@ -89,7 +99,7 @@ describe("Booking API CRUD (BRE-41)", () => {
 
   after(async () => {
     try {
-      const slotIds = [slotId, conflictSlotId].filter(Boolean);
+      const slotIds = [slotId, conflictSlotId, rebookSlotId].filter(Boolean);
       if (slotIds.length > 0) {
         const bookings = await prisma.booking.findMany({
           where: { slotId: { in: slotIds } },
@@ -221,6 +231,71 @@ describe("Booking API CRUD (BRE-41)", () => {
     };
     assert.equal(body.error.code, ErrorCode.SLOT_UNAVAILABLE);
     assert.equal(body.error.details?.slotId, conflictSlotId);
+
+    const confirmed = await prisma.booking.findMany({
+      where: { slotId: conflictSlotId, status: { not: BookingStatus.CANCELLED } },
+    });
+    assert.equal(confirmed.length, 1);
+    assert.equal(confirmed[0]!.status, BookingStatus.CONFIRMED);
+  });
+
+  it("allows a new client to book a slot after soft-cancel (BRE-76)", async () => {
+    const first = await app.inject({
+      method: "POST",
+      url: "/bookings",
+      payload: { slotId: rebookSlotId, clientId },
+    });
+    assert.equal(first.statusCode, 201);
+    const original = first.json() as { id: string };
+
+    const cancelRes = await app.inject({
+      method: "DELETE",
+      url: `/bookings/${original.id}`,
+    });
+    assert.equal(cancelRes.statusCode, 200);
+
+    const rebook = await app.inject({
+      method: "POST",
+      url: "/bookings",
+      payload: { slotId: rebookSlotId, clientId: otherClientId },
+    });
+    assert.equal(rebook.statusCode, 201);
+    const rebooked = rebook.json() as {
+      id: string;
+      status: string;
+      slotId: string;
+      clientId: string;
+    };
+    assert.equal(rebooked.status, BookingStatus.CONFIRMED);
+    assert.equal(rebooked.slotId, rebookSlotId);
+    assert.equal(rebooked.clientId, otherClientId);
+    assert.notEqual(rebooked.id, original.id);
+
+    const slot = await prisma.timeSlot.findUniqueOrThrow({
+      where: { id: rebookSlotId },
+    });
+    assert.equal(slot.status, SlotStatus.BOOKED);
+
+    const rows = await prisma.booking.findMany({
+      where: { slotId: rebookSlotId },
+      orderBy: { bookedAt: "asc" },
+    });
+    assert.equal(rows.length, 2);
+    assert.equal(rows[0]!.id, original.id);
+    assert.equal(rows[0]!.status, BookingStatus.CANCELLED);
+    assert.ok(rows[0]!.cancelledAt);
+    assert.equal(rows[1]!.id, rebooked.id);
+    assert.equal(rows[1]!.status, BookingStatus.CONFIRMED);
+    assert.equal(rows[1]!.clientId, otherClientId);
+
+    const third = await app.inject({
+      method: "POST",
+      url: "/bookings",
+      payload: { slotId: rebookSlotId, clientId },
+    });
+    assert.equal(third.statusCode, 409);
+    const thirdBody = third.json() as { error: { code: string } };
+    assert.equal(thirdBody.error.code, ErrorCode.SLOT_UNAVAILABLE);
   });
 
   it("returns 404 envelope for unknown booking id on GET and DELETE", async () => {
