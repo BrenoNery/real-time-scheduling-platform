@@ -212,7 +212,7 @@ erDiagram
 
     Booking {
         uuid id PK
-        uuid slot_id FK UK
+        uuid slot_id FK
         uuid client_id FK
         enum status "CONFIRMED | CANCELLED | COMPLETED"
         timestamp booked_at
@@ -233,7 +233,7 @@ erDiagram
 ### Key Constraints
 
 - `TimeSlot.status` transitions: `AVAILABLE → BOOKED` (one direction under lock).
-- `Booking.slot_id` is **unique** — one booking per slot, enforced at DB level.
+- At most one **non-cancelled** booking per slot, enforced by a partial unique index on `bookings(slot_id) WHERE status <> 'CANCELLED'`. Prisma cannot model `WHERE` on `@@unique`, so the index lives in SQL (`bookings_slot_id_active_key`). Cancelled rows remain (soft-cancel) and do not block a new booking.
 - Composite index on `(service_id, starts_at)` for fast availability queries.
 - Partial index on `TimeSlot WHERE status = 'AVAILABLE'` for dashboard queries.
 

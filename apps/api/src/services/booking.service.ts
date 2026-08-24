@@ -1,6 +1,10 @@
-import type { Prisma, PrismaClient } from "@repo/database";
-import type { CreateBookingBody, ListBookingsQuery } from "@repo/shared";
-import { NotFoundError } from "@repo/shared";
+import { Prisma, type PrismaClient } from "@repo/database";
+import {
+  NotFoundError,
+  SlotUnavailableError,
+  type CreateBookingBody,
+  type ListBookingsQuery,
+} from "@repo/shared";
 import {
   enqueueBookingConfirmation,
   type BookingConfirmationJobPayload,
@@ -16,6 +20,10 @@ type BookingWithRelations = Prisma.BookingGetPayload<{
   include: typeof bookingInclude;
 }>;
 
+function isPrismaUniqueConstraintError(err: unknown): boolean {
+  return err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002";
+}
+
 export class BookingService {
   private readonly lockService: LockService;
 
@@ -29,23 +37,31 @@ export class BookingService {
    * never roll back a committed booking.
    */
   async createBooking({ slotId, clientId }: CreateBookingBody): Promise<BookingWithRelations> {
-    const booking = await this.prisma.$transaction(async (tx) => {
-      await this.lockService.acquireSlotLock(tx, slotId);
+    let booking: BookingWithRelations;
+    try {
+      booking = await this.prisma.$transaction(async (tx) => {
+        await this.lockService.acquireSlotLock(tx, slotId);
 
-      await tx.timeSlot.update({
-        where: { id: slotId },
-        data: { status: "BOOKED" },
-      });
+        await tx.timeSlot.update({
+          where: { id: slotId },
+          data: { status: "BOOKED" },
+        });
 
-      return tx.booking.create({
-        data: {
-          slotId,
-          clientId,
-          status: "CONFIRMED",
-        },
-        include: bookingInclude,
+        return tx.booking.create({
+          data: {
+            slotId,
+            clientId,
+            status: "CONFIRMED",
+          },
+          include: bookingInclude,
+        });
       });
-    });
+    } catch (err) {
+      if (isPrismaUniqueConstraintError(err)) {
+        throw new SlotUnavailableError(slotId);
+      }
+      throw err;
+    }
 
     await this.enqueueConfirmationSafe(booking);
 

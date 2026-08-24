@@ -74,8 +74,8 @@ model TimeSlot {
   createdAt DateTime   @default(now()) @map("created_at")
   updatedAt DateTime   @updatedAt @map("updated_at")
 
-  service Service  @relation(fields: [serviceId], references: [id])
-  booking Booking?
+  service  Service   @relation(fields: [serviceId], references: [id])
+  bookings Booking[]
 
   @@index([serviceId, startsAt])
   @@map("time_slots")
@@ -83,15 +83,19 @@ model TimeSlot {
 
 model Booking {
   id          String        @id @default(uuid()) @db.Uuid
-  slotId      String        @unique @map("slot_id") @db.Uuid
+  // Not @unique: cancelled rows must not occupy the slot. At most one
+  // non-cancelled booking per slot is enforced by the partial unique index
+  // bookings_slot_id_active_key (WHERE status <> 'CANCELLED') in SQL —
+  // Prisma cannot model a WHERE clause on @@unique.
+  slotId      String        @map("slot_id") @db.Uuid
   clientId    String        @map("client_id") @db.Uuid
   status      BookingStatus
   bookedAt    DateTime      @default(now()) @map("booked_at")
   cancelledAt DateTime?     @map("cancelled_at")
 
-  slot              TimeSlot          @relation(fields: [slotId], references: [id])
-  client            User              @relation(fields: [clientId], references: [id])
-  notificationJobs  NotificationJob[]
+  slot             TimeSlot          @relation(fields: [slotId], references: [id])
+  client           User              @relation(fields: [clientId], references: [id])
+  notificationJobs NotificationJob[]
 
   @@map("bookings")
 }

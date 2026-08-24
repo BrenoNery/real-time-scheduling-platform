@@ -15,6 +15,7 @@ describe("POST /bookings concurrency (BRE-37)", () => {
   let serviceId: string;
   let availableSlotId: string;
   let bookedSlotId: string;
+  let rebookSlotId: string;
   let clientIds: string[];
 
   before(async () => {
@@ -43,7 +44,7 @@ describe("POST /bookings concurrency (BRE-37)", () => {
     const startsAt = new Date(Date.UTC(2030, 0, 1, 10, 0, 0));
     const endsAt = new Date(Date.UTC(2030, 0, 1, 10, 30, 0));
 
-    const [availableSlot, bookedSlot] = await Promise.all([
+    const [availableSlot, bookedSlot, rebookSlot] = await Promise.all([
       prisma.timeSlot.create({
         data: {
           serviceId,
@@ -60,9 +61,18 @@ describe("POST /bookings concurrency (BRE-37)", () => {
           status: SlotStatus.BOOKED,
         },
       }),
+      prisma.timeSlot.create({
+        data: {
+          serviceId,
+          startsAt: new Date(Date.UTC(2030, 0, 1, 12, 0, 0)),
+          endsAt: new Date(Date.UTC(2030, 0, 1, 12, 30, 0)),
+          status: SlotStatus.AVAILABLE,
+        },
+      }),
     ]);
     availableSlotId = availableSlot.id;
     bookedSlotId = bookedSlot.id;
+    rebookSlotId = rebookSlot.id;
 
     clientIds = [];
     for (let i = 0; i < CONCURRENCY; i++) {
@@ -88,7 +98,7 @@ describe("POST /bookings concurrency (BRE-37)", () => {
 
   after(async () => {
     try {
-      const slotIds = [availableSlotId, bookedSlotId].filter(Boolean);
+      const slotIds = [availableSlotId, bookedSlotId, rebookSlotId].filter(Boolean);
       if (slotIds.length > 0) {
         const bookings = await prisma.booking.findMany({
           where: { slotId: { in: slotIds } },
@@ -210,5 +220,73 @@ describe("POST /bookings concurrency (BRE-37)", () => {
       where: { id: bookedSlotId },
     });
     assert.equal(slot.status, SlotStatus.BOOKED);
+  });
+
+  it("allows exactly one concurrent rebook after cancel (BRE-76)", async () => {
+    const first = await app.inject({
+      method: "POST",
+      url: "/bookings",
+      payload: { slotId: rebookSlotId, clientId: clientIds[0]! },
+    });
+    assert.equal(first.statusCode, 201);
+    const original = first.json() as { id: string };
+
+    const cancelRes = await app.inject({
+      method: "DELETE",
+      url: `/bookings/${original.id}`,
+    });
+    assert.equal(cancelRes.statusCode, 200);
+
+    const responses = await Promise.all(
+      clientIds.map((clientId) =>
+        app.inject({
+          method: "POST",
+          url: "/bookings",
+          payload: { slotId: rebookSlotId, clientId },
+        }),
+      ),
+    );
+
+    const statusCounts = responses.reduce<Record<number, number>>((acc, res) => {
+      acc[res.statusCode] = (acc[res.statusCode] ?? 0) + 1;
+      return acc;
+    }, {});
+
+    assert.equal(
+      statusCounts[201],
+      1,
+      `expected exactly one 201, got ${JSON.stringify(statusCounts)}`,
+    );
+    assert.equal(
+      statusCounts[409],
+      CONCURRENCY - 1,
+      `expected ${CONCURRENCY - 1}×409, got ${JSON.stringify(statusCounts)}`,
+    );
+
+    for (const res of responses) {
+      if (res.statusCode === 409) {
+        const body = res.json() as {
+          error: { code: string; details?: { slotId?: string } };
+        };
+        assert.equal(body.error.code, ErrorCode.SLOT_UNAVAILABLE);
+        assert.equal(body.error.details?.slotId, rebookSlotId);
+      }
+    }
+
+    const slot = await prisma.timeSlot.findUniqueOrThrow({
+      where: { id: rebookSlotId },
+    });
+    assert.equal(slot.status, SlotStatus.BOOKED);
+
+    const bookings = await prisma.booking.findMany({
+      where: { slotId: rebookSlotId },
+    });
+    assert.equal(bookings.length, 2);
+    const cancelled = bookings.filter((b) => b.status === BookingStatus.CANCELLED);
+    const confirmed = bookings.filter((b) => b.status === BookingStatus.CONFIRMED);
+    assert.equal(cancelled.length, 1);
+    assert.equal(cancelled[0]!.id, original.id);
+    assert.equal(confirmed.length, 1);
+    assert.ok(clientIds.includes(confirmed[0]!.clientId));
   });
 });

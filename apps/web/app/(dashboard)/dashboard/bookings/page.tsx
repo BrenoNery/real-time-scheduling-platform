@@ -37,9 +37,6 @@ export default async function BookingsPage() {
     prisma.timeSlot.findMany({
       where: {
         status: SlotStatus.AVAILABLE,
-        // Soft-cancelled bookings keep the unique slot_id row, so the API
-        // cannot create a second booking even when the slot looks AVAILABLE.
-        booking: { is: null },
       },
       include: { service: true },
       orderBy: { startsAt: "asc" },
