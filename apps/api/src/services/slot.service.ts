@@ -2,13 +2,13 @@ import { Prisma, type PrismaClient } from "@repo/database";
 import {
   NotFoundError,
   SlotNotMutableError,
-  clockTimeToMinutes,
-  parseCalendarDate,
   type GenerateSlotsBody,
+  type GenerateSlotsResponse,
   type ListSlotsQuery,
   type UpdateSlotBody,
 } from "@repo/shared";
 import { LockService } from "./lock.service.js";
+import { buildCandidates, overlaps, utcDateRange } from "./slot-window.js";
 
 const slotInclude = {
   service: true,
@@ -18,58 +18,12 @@ type SlotWithService = Prisma.TimeSlotGetPayload<{
   include: typeof slotInclude;
 }>;
 
-const MINUTE_MS = 60_000;
-const DAY_MS = 86_400_000;
-
 /**
  * Generating one day can block on the advisory lock while a concurrent request
  * finishes, so the interactive transaction gets more headroom than Prisma's
  * 5s/2s defaults.
  */
 const GENERATE_TX_OPTIONS = { timeout: 20_000, maxWait: 20_000 } as const;
-
-type CandidateSlot = { startsAt: Date; endsAt: Date };
-
-/** Inclusive list of UTC calendar dates (`YYYY-MM-DD`) between two dates. */
-function utcDateRange(startDate: string, endDate: string): string[] {
-  const dates: string[] = [];
-  const end = parseCalendarDate(endDate).getTime();
-
-  for (let cursor = parseCalendarDate(startDate).getTime(); cursor <= end; cursor += DAY_MS) {
-    dates.push(new Date(cursor).toISOString().slice(0, 10));
-  }
-
-  return dates;
-}
-
-/**
- * Fill `[windowStart, windowEnd)` with back-to-back intervals of `durationMinutes`.
- * A trailing gap shorter than the duration is dropped rather than shortened.
- */
-function buildCandidates(
-  date: string,
-  windowStart: string,
-  windowEnd: string,
-  durationMinutes: number,
-): CandidateSlot[] {
-  const dayStart = parseCalendarDate(date).getTime();
-  const windowEndMs = dayStart + clockTimeToMinutes(windowEnd) * MINUTE_MS;
-  const stepMs = durationMinutes * MINUTE_MS;
-
-  const candidates: CandidateSlot[] = [];
-  let cursor = dayStart + clockTimeToMinutes(windowStart) * MINUTE_MS;
-
-  while (cursor + stepMs <= windowEndMs) {
-    candidates.push({ startsAt: new Date(cursor), endsAt: new Date(cursor + stepMs) });
-    cursor += stepMs;
-  }
-
-  return candidates;
-}
-
-function overlaps(a: CandidateSlot, b: { startsAt: Date; endsAt: Date }): boolean {
-  return a.startsAt.getTime() < b.endsAt.getTime() && b.startsAt.getTime() < a.endsAt.getTime();
-}
 
 export class SlotService {
   private readonly lockService: LockService;
@@ -104,8 +58,11 @@ export class SlotService {
    * generated in its own transaction guarded by `pg_advisory_xact_lock`, so parallel
    * requests for the same service and date cannot insert overlapping slots. Existing
    * rows always win, which makes the operation idempotent, and new rows are AVAILABLE.
+   *
+   * `created` is this request's inserts; `slots` is the full overlapping window
+   * (including BOOKED/BLOCKED).
    */
-  async generateSlots(body: GenerateSlotsBody): Promise<SlotWithService[]> {
+  async generateSlots(body: GenerateSlotsBody): Promise<GenerateSlotsResponse<SlotWithService>> {
     const { serviceId, startDate, endDate, windowStart, windowEnd } = body;
 
     const service = await this.prisma.service.findUnique({ where: { id: serviceId } });
@@ -113,6 +70,7 @@ export class SlotService {
       throw new NotFoundError("Service", serviceId);
     }
 
+    const createdIds: string[] = [];
     const windows: Array<{ from: Date; to: Date }> = [];
 
     for (const date of utcDateRange(startDate, endDate)) {
@@ -142,23 +100,25 @@ export class SlotService {
         );
 
         if (missing.length > 0) {
-          await tx.timeSlot.createMany({
+          const inserted = await tx.timeSlot.createManyAndReturn({
             data: missing.map((candidate) => ({
               serviceId,
               startsAt: candidate.startsAt,
               endsAt: candidate.endsAt,
               status: "AVAILABLE" as const,
             })),
+            select: { id: true },
           });
+          createdIds.push(...inserted.map((row) => row.id));
         }
       }, GENERATE_TX_OPTIONS);
     }
 
     if (windows.length === 0) {
-      return [];
+      return { created: [], slots: [] };
     }
 
-    return this.prisma.timeSlot.findMany({
+    const slots = await this.prisma.timeSlot.findMany({
       where: {
         serviceId,
         OR: windows.map((window) => ({
@@ -169,6 +129,11 @@ export class SlotService {
       include: slotInclude,
       orderBy: { startsAt: "asc" },
     });
+
+    const createdIdSet = new Set(createdIds);
+    const created = slots.filter((slot) => createdIdSet.has(slot.id));
+
+    return { created, slots };
   }
 
   /**

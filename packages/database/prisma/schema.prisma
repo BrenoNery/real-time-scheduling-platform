@@ -56,6 +56,8 @@ model Service {
   providerId      String   @map("provider_id") @db.Uuid
   name            String
   description     String
+  // Must be > 0. Enforced by services_duration_minutes_positive CHECK in SQL —
+  // Prisma cannot model CHECK constraints here the way we need them in migrations.
   durationMinutes Int      @map("duration_minutes")
   createdAt       DateTime @default(now()) @map("created_at")
 
@@ -77,6 +79,9 @@ model TimeSlot {
   service  Service   @relation(fields: [serviceId], references: [id])
   bookings Booking[]
 
+  // ends_at > starts_at (time_slots_ends_after_starts) and no overlapping ranges
+  // per service (time_slots_no_overlap EXCLUDE USING gist) live in SQL — Prisma
+  // cannot model CHECK/EXCLUDE.
   @@index([serviceId, startsAt])
   @@map("time_slots")
 }

@@ -179,7 +179,9 @@ describe("POST /bookings concurrency (BRE-37)", () => {
 
   it("returns 409 for a missing slot and does not insert a booking", async () => {
     const missingSlotId = randomUUID();
-    const beforeCount = await prisma.booking.count();
+    const beforeCount = await prisma.booking.count({
+      where: { clientId: clientIds[0]! },
+    });
 
     const res = await app.inject({
       method: "POST",
@@ -191,7 +193,9 @@ describe("POST /bookings concurrency (BRE-37)", () => {
     const body = res.json() as { error: { code: string } };
     assert.equal(body.error.code, ErrorCode.SLOT_UNAVAILABLE);
 
-    const afterCount = await prisma.booking.count();
+    const afterCount = await prisma.booking.count({
+      where: { clientId: clientIds[0]! },
+    });
     assert.equal(afterCount, beforeCount);
   });
 

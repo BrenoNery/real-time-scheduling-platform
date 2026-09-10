@@ -40,6 +40,7 @@ export type {
   SlotStatusValue,
   ListSlotsQuery,
   GenerateSlotsBody,
+  GenerateSlotsResponse,
   SlotIdParams,
   UpdateSlotBody,
 } from "./slots.js";

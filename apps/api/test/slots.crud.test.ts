@@ -8,6 +8,7 @@ import { buildApp } from "../src/app.js";
 
 /** Far-future UTC dates so fixtures never collide with the seed data. */
 const GENERATE_DATE = "2032-03-01";
+const IDEMPOTENT_DATE = "2032-03-04";
 const PATCH_DAY = Date.UTC(2032, 2, 2);
 const LIST_DAY_ONE = Date.UTC(2032, 2, 5);
 const LIST_DAY_TWO = Date.UTC(2032, 2, 6);
@@ -21,6 +22,15 @@ type SlotResponse = {
   endsAt: string;
   service: { id: string; name: string };
 };
+
+type GenerateResponse = {
+  created: SlotResponse[];
+  slots: SlotResponse[];
+};
+
+function errorText(err: unknown): string {
+  return err instanceof Error ? `${err.message} ${JSON.stringify(err)}` : String(err);
+}
 
 describe("Slot API CRUD (BRE-77)", () => {
   let app: FastifyInstance;
@@ -241,13 +251,14 @@ describe("Slot API CRUD (BRE-77)", () => {
     });
     assert.equal(res.statusCode, 201);
 
-    const slots = res.json() as SlotResponse[];
-    assert.equal(slots.length, 6);
-    assert.ok(slots.every((slot) => slot.status === SlotStatus.AVAILABLE));
-    assert.ok(slots.every((slot) => slot.serviceId === serviceId));
-    assert.ok(slots.every((slot) => slot.service.id === serviceId));
+    const body = res.json() as GenerateResponse;
+    assert.equal(body.created.length, 6);
+    assert.equal(body.slots.length, 6);
+    assert.ok(body.created.every((slot) => slot.status === SlotStatus.AVAILABLE));
+    assert.ok(body.slots.every((slot) => slot.serviceId === serviceId));
+    assert.ok(body.slots.every((slot) => slot.service.id === serviceId));
     assert.deepEqual(
-      slots.map((slot) => slot.startsAt),
+      body.slots.map((slot) => slot.startsAt),
       [
         "2032-03-01T09:00:00.000Z",
         "2032-03-01T09:30:00.000Z",
@@ -257,25 +268,33 @@ describe("Slot API CRUD (BRE-77)", () => {
         "2032-03-01T11:30:00.000Z",
       ],
     );
-    assert.equal(slots[5]!.endsAt, "2032-03-01T12:00:00.000Z");
+    assert.equal(body.slots[5]!.endsAt, "2032-03-01T12:00:00.000Z");
+    assert.deepEqual(
+      body.created.map((slot) => slot.id).sort(),
+      body.slots.map((slot) => slot.id).sort(),
+    );
   });
 
   it("is idempotent: regenerating the same range creates no duplicates", async () => {
     const payload = {
       serviceId,
-      startDate: GENERATE_DATE,
-      endDate: GENERATE_DATE,
+      startDate: IDEMPOTENT_DATE,
+      endDate: IDEMPOTENT_DATE,
       windowStart: "09:00",
       windowEnd: "12:00",
     };
 
     const first = await app.inject({ method: "POST", url: "/slots/generate", payload });
     assert.equal(first.statusCode, 201);
-    const firstIds = (first.json() as SlotResponse[]).map((slot) => slot.id).sort();
+    const firstBody = first.json() as GenerateResponse;
+    assert.equal(firstBody.created.length, 6);
+    const firstIds = firstBody.slots.map((slot) => slot.id).sort();
 
     const second = await app.inject({ method: "POST", url: "/slots/generate", payload });
     assert.equal(second.statusCode, 201);
-    const secondIds = (second.json() as SlotResponse[]).map((slot) => slot.id).sort();
+    const secondBody = second.json() as GenerateResponse;
+    assert.equal(secondBody.created.length, 0);
+    const secondIds = secondBody.slots.map((slot) => slot.id).sort();
 
     assert.deepEqual(secondIds, firstIds);
 
@@ -283,8 +302,8 @@ describe("Slot API CRUD (BRE-77)", () => {
       where: {
         serviceId,
         startsAt: {
-          gte: new Date(`${GENERATE_DATE}T09:00:00.000Z`),
-          lt: new Date(`${GENERATE_DATE}T12:00:00.000Z`),
+          gte: new Date(`${IDEMPOTENT_DATE}T09:00:00.000Z`),
+          lt: new Date(`${IDEMPOTENT_DATE}T12:00:00.000Z`),
         },
       },
     });
@@ -306,9 +325,10 @@ describe("Slot API CRUD (BRE-77)", () => {
     });
     assert.equal(res.statusCode, 201);
 
-    const slots = res.json() as SlotResponse[];
-    assert.equal(slots.length, 2);
-    assert.equal(slots[1]!.endsAt, "2032-03-03T10:00:00.000Z");
+    const body = res.json() as GenerateResponse;
+    assert.equal(body.created.length, 2);
+    assert.equal(body.slots.length, 2);
+    assert.equal(body.slots[1]!.endsAt, "2032-03-03T10:00:00.000Z");
   });
 
   it("returns 404 for an unknown service and 422 for invalid generate bodies", async () => {
@@ -351,6 +371,151 @@ describe("Slot API CRUD (BRE-77)", () => {
         ErrorCode.VALIDATION_ERROR,
       );
     }
+  });
+
+  it("skips existing BOOKED and BLOCKED slots and only creates the gaps", async () => {
+    const date = "2032-03-10";
+    const booked = await prisma.timeSlot.create({
+      data: {
+        serviceId,
+        startsAt: new Date(`${date}T09:00:00.000Z`),
+        endsAt: new Date(`${date}T09:30:00.000Z`),
+        status: SlotStatus.BOOKED,
+      },
+    });
+    await prisma.booking.create({
+      data: { slotId: booked.id, clientId, status: BookingStatus.CONFIRMED },
+    });
+    const blocked = await prisma.timeSlot.create({
+      data: {
+        serviceId,
+        startsAt: new Date(`${date}T09:30:00.000Z`),
+        endsAt: new Date(`${date}T10:00:00.000Z`),
+        status: SlotStatus.BLOCKED,
+      },
+    });
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/slots/generate",
+      payload: {
+        serviceId,
+        startDate: date,
+        endDate: date,
+        windowStart: "09:00",
+        windowEnd: "12:00",
+      },
+    });
+    assert.equal(res.statusCode, 201);
+
+    const body = res.json() as GenerateResponse;
+    assert.equal(body.created.length, 4);
+    assert.equal(body.slots.length, 6);
+    assert.ok(body.created.every((slot) => slot.status === SlotStatus.AVAILABLE));
+    assert.ok(!body.created.some((slot) => slot.id === booked.id || slot.id === blocked.id));
+
+    const byId = new Map(body.slots.map((slot) => [slot.id, slot]));
+    assert.equal(byId.get(booked.id)?.status, SlotStatus.BOOKED);
+    assert.equal(byId.get(blocked.id)?.status, SlotStatus.BLOCKED);
+
+    const stored = await prisma.timeSlot.findMany({
+      where: {
+        serviceId,
+        startsAt: { gte: new Date(`${date}T09:00:00.000Z`), lt: new Date(`${date}T12:00:00.000Z`) },
+      },
+      orderBy: { startsAt: "asc" },
+    });
+    assert.equal(stored.length, 6);
+    assert.equal(stored[0]!.status, SlotStatus.BOOKED);
+    assert.equal(stored[1]!.status, SlotStatus.BLOCKED);
+  });
+
+  it("widens a previous window by inserting only the new afternoon slots", async () => {
+    const date = "2032-03-08";
+    const morning = await app.inject({
+      method: "POST",
+      url: "/slots/generate",
+      payload: {
+        serviceId,
+        startDate: date,
+        endDate: date,
+        windowStart: "09:00",
+        windowEnd: "12:00",
+      },
+    });
+    assert.equal(morning.statusCode, 201);
+    const morningBody = morning.json() as GenerateResponse;
+    assert.equal(morningBody.created.length, 6);
+
+    const widened = await app.inject({
+      method: "POST",
+      url: "/slots/generate",
+      payload: {
+        serviceId,
+        startDate: date,
+        endDate: date,
+        windowStart: "09:00",
+        windowEnd: "17:00",
+      },
+    });
+    assert.equal(widened.statusCode, 201);
+    const widenedBody = widened.json() as GenerateResponse;
+    assert.equal(widenedBody.created.length, 10);
+    assert.equal(widenedBody.slots.length, 16);
+    assert.ok(widenedBody.created.every((slot) => new Date(slot.startsAt).getUTCHours() >= 12));
+    assert.ok(
+      morningBody.slots.every((slot) => widenedBody.slots.some((row) => row.id === slot.id)),
+    );
+  });
+
+  it("rejects a non-positive service duration at the database", async () => {
+    await assert.rejects(
+      () =>
+        prisma.service.create({
+          data: {
+            providerId,
+            name: `BRE-77 Zero Duration ${runId}`,
+            description: "Should fail CHECK",
+            durationMinutes: 0,
+          },
+        }),
+      (err: unknown) => errorText(err).includes("services_duration_minutes_positive"),
+    );
+  });
+
+  it("rejects overlapping slots for the same service at the database", async () => {
+    const date = "2032-03-11";
+    await prisma.timeSlot.create({
+      data: {
+        serviceId,
+        startsAt: new Date(`${date}T09:00:00.000Z`),
+        endsAt: new Date(`${date}T10:00:00.000Z`),
+        status: SlotStatus.AVAILABLE,
+      },
+    });
+
+    await assert.rejects(
+      () =>
+        prisma.timeSlot.create({
+          data: {
+            serviceId,
+            startsAt: new Date(`${date}T09:30:00.000Z`),
+            endsAt: new Date(`${date}T10:30:00.000Z`),
+            status: SlotStatus.AVAILABLE,
+          },
+        }),
+      (err: unknown) => errorText(err).includes("time_slots_no_overlap"),
+    );
+
+    const adjacent = await prisma.timeSlot.create({
+      data: {
+        serviceId,
+        startsAt: new Date(`${date}T10:00:00.000Z`),
+        endsAt: new Date(`${date}T11:00:00.000Z`),
+        status: SlotStatus.AVAILABLE,
+      },
+    });
+    assert.equal(adjacent.startsAt.toISOString(), `${date}T10:00:00.000Z`);
   });
 
   it("blocks a slot, keeps it unbookable, then restores it", async () => {

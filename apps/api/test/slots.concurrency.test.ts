@@ -82,10 +82,16 @@ describe("POST /slots/generate concurrency (BRE-77)", () => {
       `expected ${CONCURRENCY}×201, got ${JSON.stringify(statusCounts)}`,
     );
 
+    let createdTotal = 0;
     for (const res of responses) {
-      const slots = res.json() as Array<{ id: string; status: string }>;
-      assert.equal(slots.length, EXPECTED_SLOTS);
+      const body = res.json() as {
+        created: Array<{ id: string }>;
+        slots: Array<{ id: string; status: string }>;
+      };
+      createdTotal += body.created.length;
+      assert.equal(body.slots.length, EXPECTED_SLOTS);
     }
+    assert.equal(createdTotal, EXPECTED_SLOTS);
 
     const stored = await prisma.timeSlot.findMany({
       where: { serviceId },

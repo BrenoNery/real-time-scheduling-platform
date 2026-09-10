@@ -96,6 +96,16 @@ export const generateSlotsBodySchema = z
 
 export type GenerateSlotsBody = z.infer<typeof generateSlotsBodySchema>;
 
+/**
+ * POST /slots/generate response. `created` is only the rows this request inserted
+ * (always AVAILABLE). `slots` is every slot overlapping the generated windows,
+ * including BOOKED/BLOCKED rows that already existed.
+ */
+export type GenerateSlotsResponse<TSlot> = {
+  created: TSlot[];
+  slots: TSlot[];
+};
+
 export const slotIdParamsSchema = z.object({
   id: z.string().uuid(),
 });
