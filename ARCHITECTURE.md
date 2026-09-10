@@ -141,8 +141,9 @@ Server Components read directly from PostgreSQL. Mutations go through Server Act
 | -------------------------------- | ------------------------------------------------- |
 | `routes/health.ts`               | Health check endpoint                             |
 | `routes/bookings.ts`             | Booking CRUD + concurrency-safe create            |
-| `routes/slots.ts`                | Slot availability management                      |
+| `routes/slots.ts`                | Slot availability listing, generation, blocking   |
 | `services/booking.service.ts`    | Transaction orchestration                         |
+| `services/slot.service.ts`       | Slot listing, advisory-locked bulk generation     |
 | `services/lock.service.ts`       | PostgreSQL lock acquisition                       |
 | `queues/notification.queue.ts`   | BullMQ producer                                   |
 | `workers/notification.worker.ts` | BullMQ consumer (separate process)                |
@@ -294,15 +295,15 @@ async function acquireSlotLock(tx: PrismaTransaction, slotId: string) {
 }
 ```
 
-### Advisory Locks (Alternative / Complement)
+### Advisory Locks (Bulk Slot Generation)
 
-For operations spanning multiple slots (e.g., blocking a time range), PostgreSQL advisory locks provide session-level mutual exclusion:
+Operations spanning multiple slots have no single row to lock. `POST /slots/generate` therefore takes a transaction-scoped advisory lock keyed by service and UTC calendar date before it reads or inserts that day's slots:
 
 ```sql
 SELECT pg_advisory_xact_lock(hashtext('slot-range:' || service_id || ':' || date));
 ```
 
-Advisory locks are automatically released at transaction end (`xact` scope).
+Each day of the requested range is generated in its own transaction, so concurrent requests for the same service and date serialize on the lock. The second request sees the rows the first one committed and inserts nothing, which makes generation idempotent: existing slots always win, and newly created slots are always `AVAILABLE`. Advisory locks are released automatically at transaction end (`xact` scope).
 
 ### Lock Strategy Decision Matrix
 
@@ -453,8 +454,9 @@ flowchart TB
 
 | HTTP Status | Scenario                                        |
 | ----------- | ----------------------------------------------- |
-| `201`       | Booking created successfully                    |
+| `201`       | Booking created / slots generated successfully  |
 | `409`       | Slot no longer available (concurrency conflict) |
+| `409`       | Slot cannot be blocked or unblocked (`BOOKED`)  |
 | `404`       | Slot or booking not found                       |
 | `422`       | Validation error (Zod)                          |
 | `500`       | Unexpected server error                         |
@@ -470,6 +472,8 @@ All API errors follow a consistent envelope:
   }
 }
 ```
+
+`SLOT_UNAVAILABLE` covers a slot that cannot be booked. `PATCH /slots/:id` uses a separate `SLOT_NOT_MUTABLE` code so clients can tell "someone booked this slot first" apart from "this slot is not bookable": a `BOOKED` slot is only released by cancelling its booking, never by the block/unblock endpoint.
 
 ### Validation
 

@@ -32,4 +32,29 @@ export class LockService {
 
     return slot;
   }
+
+  /**
+   * Lock an existing slot row regardless of status, for transitions that must read
+   * the current status before deciding (block/unblock). Returns null when missing.
+   */
+  async acquireSlotRowLock(tx: DbTransaction, slotId: string): Promise<LockedSlotRow | null> {
+    const rows = await tx.$queryRaw<LockedSlotRow[]>`
+      SELECT id, status, starts_at, ends_at
+      FROM time_slots
+      WHERE id = ${slotId}::uuid
+      FOR UPDATE
+    `;
+
+    return rows[0] ?? null;
+  }
+
+  /**
+   * Serialize bulk slot generation for one service on one UTC calendar date.
+   * The advisory lock is transaction-scoped, so PostgreSQL releases it on
+   * COMMIT/ROLLBACK; it must be taken before reading or inserting that day's slots.
+   */
+  async acquireSlotRangeLock(tx: DbTransaction, serviceId: string, date: string): Promise<void> {
+    const key = `slot-range:${serviceId}:${date}`;
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${key}))`;
+  }
 }

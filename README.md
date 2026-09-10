@@ -218,7 +218,7 @@ The booking dashboard loads data directly from PostgreSQL inside Server Componen
 
 ### 3. PostgreSQL-native concurrency control
 
-Application-level checks (`if slot.available`) are insufficient under concurrent load. The booking flow wraps slot selection in a database transaction and acquires a row-level lock (`SELECT … FOR UPDATE`) before updating availability. Advisory locks provide an alternative for slot-range coordination when needed.
+Application-level checks (`if slot.available`) are insufficient under concurrent load. The booking flow wraps slot selection in a database transaction and acquires a row-level lock (`SELECT … FOR UPDATE`) before updating availability. Bulk slot generation has no single row to lock, so `POST /slots/generate` serializes on a transaction-scoped advisory lock (`pg_advisory_xact_lock`) keyed by service and UTC date, which keeps parallel requests from creating duplicate slots.
 
 ### 4. BullMQ for notification decoupling
 
