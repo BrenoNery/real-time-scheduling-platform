@@ -1,5 +1,6 @@
 export const ErrorCode = {
   SLOT_UNAVAILABLE: "SLOT_UNAVAILABLE",
+  SLOT_NOT_MUTABLE: "SLOT_NOT_MUTABLE",
   NOT_FOUND: "NOT_FOUND",
   VALIDATION_ERROR: "VALIDATION_ERROR",
   INTERNAL_ERROR: "INTERNAL_ERROR",
@@ -47,6 +48,36 @@ export function isSlotUnavailableError(error: unknown): error is SlotUnavailable
       error !== null &&
       "name" in error &&
       (error as { name: unknown }).name === "SlotUnavailableError" &&
+      "slotId" in error &&
+      typeof (error as { slotId: unknown }).slotId === "string")
+  );
+}
+
+/**
+ * A slot exists but its current status forbids the requested transition — a BOOKED
+ * slot cannot be blocked or unblocked. Distinct from SLOT_UNAVAILABLE, which the
+ * booking flow uses when a slot cannot be taken.
+ */
+export class SlotNotMutableError extends Error {
+  readonly code = ErrorCode.SLOT_NOT_MUTABLE;
+  readonly slotId: string;
+  readonly slotStatus: string;
+
+  constructor(slotId: string, slotStatus: string) {
+    super(`Slot is ${slotStatus} and can only be changed through the booking flow.`);
+    this.name = "SlotNotMutableError";
+    this.slotId = slotId;
+    this.slotStatus = slotStatus;
+  }
+}
+
+export function isSlotNotMutableError(error: unknown): error is SlotNotMutableError {
+  return (
+    error instanceof SlotNotMutableError ||
+    (typeof error === "object" &&
+      error !== null &&
+      "name" in error &&
+      (error as { name: unknown }).name === "SlotNotMutableError" &&
       "slotId" in error &&
       typeof (error as { slotId: unknown }).slotId === "string")
   );

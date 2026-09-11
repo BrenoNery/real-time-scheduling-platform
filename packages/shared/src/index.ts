@@ -13,6 +13,8 @@ export {
   apiError,
   SlotUnavailableError,
   isSlotUnavailableError,
+  SlotNotMutableError,
+  isSlotNotMutableError,
   NotFoundError,
   isNotFoundError,
 } from "./errors.js";
@@ -24,3 +26,21 @@ export {
   listBookingsQuerySchema,
 } from "./bookings.js";
 export type { CreateBookingBody, BookingIdParams, ListBookingsQuery } from "./bookings.js";
+
+export {
+  MAX_GENERATE_RANGE_DAYS,
+  listSlotsQuerySchema,
+  generateSlotsBodySchema,
+  slotIdParamsSchema,
+  updateSlotBodySchema,
+  parseCalendarDate,
+  clockTimeToMinutes,
+} from "./slots.js";
+export type {
+  SlotStatusValue,
+  ListSlotsQuery,
+  GenerateSlotsBody,
+  GenerateSlotsResponse,
+  SlotIdParams,
+  UpdateSlotBody,
+} from "./slots.js";

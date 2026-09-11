@@ -141,8 +141,9 @@ Server Components read directly from PostgreSQL. Mutations go through Server Act
 | -------------------------------- | ------------------------------------------------- |
 | `routes/health.ts`               | Health check endpoint                             |
 | `routes/bookings.ts`             | Booking CRUD + concurrency-safe create            |
-| `routes/slots.ts`                | Slot availability management                      |
+| `routes/slots.ts`                | Slot availability listing, generation, blocking   |
 | `services/booking.service.ts`    | Transaction orchestration                         |
+| `services/slot.service.ts`       | Slot listing, advisory-locked bulk generation     |
 | `services/lock.service.ts`       | PostgreSQL lock acquisition                       |
 | `queues/notification.queue.ts`   | BullMQ producer                                   |
 | `workers/notification.worker.ts` | BullMQ consumer (separate process)                |
@@ -236,6 +237,9 @@ erDiagram
 - At most one **non-cancelled** booking per slot, enforced by a partial unique index on `bookings(slot_id) WHERE status <> 'CANCELLED'`. Prisma cannot model `WHERE` on `@@unique`, so the index lives in SQL (`bookings_slot_id_active_key`). Cancelled rows remain (soft-cancel) and do not block a new booking.
 - Composite index on `(service_id, starts_at)` for fast availability queries.
 - Partial index on `TimeSlot WHERE status = 'AVAILABLE'` for dashboard queries.
+- `Service.duration_minutes > 0`, enforced by `services_duration_minutes_positive` (`CHECK` in SQL).
+- `TimeSlot.ends_at > starts_at`, enforced by `time_slots_ends_after_starts` (`CHECK` in SQL).
+- Slots of the same service never overlap, enforced by `time_slots_no_overlap` (`EXCLUDE USING gist` on `tsrange(starts_at, ends_at, '[)')`). Adjacent slots that only touch at the boundary are allowed. Prisma cannot model `EXCLUDE`, so the constraint lives in SQL.
 
 ---
 
@@ -294,15 +298,17 @@ async function acquireSlotLock(tx: PrismaTransaction, slotId: string) {
 }
 ```
 
-### Advisory Locks (Alternative / Complement)
+### Advisory Locks (Bulk Slot Generation)
 
-For operations spanning multiple slots (e.g., blocking a time range), PostgreSQL advisory locks provide session-level mutual exclusion:
+Operations spanning multiple slots have no single row to lock. `POST /slots/generate` therefore takes a transaction-scoped advisory lock keyed by service and UTC calendar date before it reads or inserts that day's slots:
 
 ```sql
 SELECT pg_advisory_xact_lock(hashtext('slot-range:' || service_id || ':' || date));
 ```
 
-Advisory locks are automatically released at transaction end (`xact` scope).
+Each day of the requested range is generated in its own transaction, so concurrent requests for the same service and date serialize on the lock. The second request sees the rows the first one committed and inserts nothing, which makes generation idempotent: existing slots always win, and newly created slots are always `AVAILABLE`. Advisory locks are released automatically at transaction end (`xact` scope). `time_slots_no_overlap` is the database backstop if a writer bypasses the lock.
+
+`POST /slots/generate` returns `201` with `{ created, slots }`. `created` is only the rows this request inserted. `slots` is every slot overlapping the generated windows, including `BOOKED` and `BLOCKED` rows that were already there. Clients must not treat `slots` as “all available”. A second identical request returns `created: []` and the same `slots` ids.
 
 ### Lock Strategy Decision Matrix
 
@@ -451,13 +457,14 @@ flowchart TB
 
 ### Error Handling
 
-| HTTP Status | Scenario                                        |
-| ----------- | ----------------------------------------------- |
-| `201`       | Booking created successfully                    |
-| `409`       | Slot no longer available (concurrency conflict) |
-| `404`       | Slot or booking not found                       |
-| `422`       | Validation error (Zod)                          |
-| `500`       | Unexpected server error                         |
+| HTTP Status | Scenario                                                          |
+| ----------- | ----------------------------------------------------------------- |
+| `201`       | Booking created / slot generation accepted (`{ created, slots }`) |
+| `409`       | Slot no longer available (concurrency conflict)                   |
+| `409`       | Slot cannot be blocked or unblocked (`BOOKED`)                    |
+| `404`       | Slot or booking not found                                         |
+| `422`       | Validation error (Zod)                                            |
+| `500`       | Unexpected server error                                           |
 
 All API errors follow a consistent envelope:
 
@@ -470,6 +477,8 @@ All API errors follow a consistent envelope:
   }
 }
 ```
+
+`SLOT_UNAVAILABLE` covers a slot that cannot be booked. `PATCH /slots/:id` uses a separate `SLOT_NOT_MUTABLE` code so clients can tell "someone booked this slot first" apart from "this slot is not bookable": a `BOOKED` slot is only released by cancelling its booking, never by the block/unblock endpoint.
 
 ### Validation
 
