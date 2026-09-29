@@ -199,6 +199,15 @@ describe("Booking API CRUD (BRE-41)", () => {
     assert.equal(booking.status, BookingStatus.CANCELLED);
     assert.ok(booking.cancelledAt);
 
+    const notificationJobsAfterCancel = await prisma.notificationJob.findMany({
+      where: { bookingId: created.id },
+    });
+    const cancellationJobs = notificationJobsAfterCancel.filter(
+      (job) => job.type === NotificationType.CANCELLATION,
+    );
+    assert.equal(cancellationJobs.length, 1);
+    assert.equal(cancellationJobs[0]!.status, NotificationStatus.PENDING);
+
     // Second cancel → 404 (already cancelled)
     const secondCancel = await app.inject({
       method: "DELETE",

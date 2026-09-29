@@ -1,19 +1,22 @@
 import { Queue } from "bullmq";
 import { Redis } from "ioredis";
 
-/** Payload for `booking.confirmation` jobs (ARCHITECTURE.md §6). */
-export type BookingConfirmationJobPayload = {
+/** Shared payload for booking notification jobs (ARCHITECTURE.md §6). */
+export type BookingNotificationJobPayload = {
   bookingId: string;
   clientEmail: string;
   clientName: string;
   slotStartsAt: string;
   serviceName: string;
 };
+export type BookingConfirmationJobPayload = BookingNotificationJobPayload;
+export type BookingCancellationJobPayload = BookingNotificationJobPayload;
 
 export const NOTIFICATION_QUEUE_NAME = "notifications";
 export const BOOKING_CONFIRMATION_JOB_NAME = "booking.confirmation";
+export const BOOKING_CANCELLATION_JOB_NAME = "booking.cancellation";
 
-let confirmationQueue: Queue<BookingConfirmationJobPayload> | null = null;
+let notificationQueue: Queue<BookingNotificationJobPayload> | null = null;
 let redisConnection: Redis | null = null;
 
 function getRedisUrl(): string | undefined {
@@ -43,14 +46,14 @@ function getRedisConnection(): Redis | null {
  * Lazy BullMQ producer for booking confirmation emails.
  * Returns null when REDIS_URL is unset (producer becomes a no-op).
  */
-export function getNotificationQueue(): Queue<BookingConfirmationJobPayload> | null {
+export function getNotificationQueue(): Queue<BookingNotificationJobPayload> | null {
   const connection = getRedisConnection();
   if (!connection) {
     return null;
   }
 
-  if (!confirmationQueue) {
-    confirmationQueue = new Queue<BookingConfirmationJobPayload>(NOTIFICATION_QUEUE_NAME, {
+  if (!notificationQueue) {
+    notificationQueue = new Queue<BookingNotificationJobPayload>(NOTIFICATION_QUEUE_NAME, {
       connection,
       defaultJobOptions: {
         attempts: 3,
@@ -61,7 +64,20 @@ export function getNotificationQueue(): Queue<BookingConfirmationJobPayload> | n
     });
   }
 
-  return confirmationQueue;
+  return notificationQueue;
+}
+
+async function ensureConnected(connection: Redis | null): Promise<void> {
+  if (connection && connection.status === "wait") {
+    await connection.connect();
+  }
+}
+
+function buildNotificationJobId(
+  payload: BookingNotificationJobPayload,
+  action: "confirmation" | "cancellation",
+): string {
+  return `booking:${payload.bookingId}:${action}`;
 }
 
 /**
@@ -76,19 +92,35 @@ export async function enqueueBookingConfirmation(
     return;
   }
 
-  const connection = getRedisConnection();
-  if (connection && connection.status === "wait") {
-    await connection.connect();
-  }
+  await ensureConnected(getRedisConnection());
 
   await queue.add(BOOKING_CONFIRMATION_JOB_NAME, payload, {
-    jobId: `booking:${payload.bookingId}:confirmation`,
+    jobId: buildNotificationJobId(payload, "confirmation"),
+  });
+}
+
+/**
+ * Enqueue a cancellation job. Idempotent via jobId `booking:{id}:cancellation`.
+ * Callers must treat failures as non-fatal after a committed cancellation.
+ */
+export async function enqueueBookingCancellation(
+  payload: BookingCancellationJobPayload,
+): Promise<void> {
+  const queue = getNotificationQueue();
+  if (!queue) {
+    return;
+  }
+
+  await ensureConnected(getRedisConnection());
+
+  await queue.add(BOOKING_CANCELLATION_JOB_NAME, payload, {
+    jobId: buildNotificationJobId(payload, "cancellation"),
   });
 }
 
 export async function closeNotificationQueue(): Promise<void> {
-  const queue = confirmationQueue;
-  confirmationQueue = null;
+  const queue = notificationQueue;
+  notificationQueue = null;
   if (queue) {
     try {
       await queue.close();

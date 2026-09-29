@@ -3,9 +3,12 @@ import type { PrismaClient } from "@repo/database";
 import { Queue, Worker, type Job } from "bullmq";
 import { Redis } from "ioredis";
 import {
+  BOOKING_CANCELLATION_JOB_NAME,
   BOOKING_CONFIRMATION_JOB_NAME,
   NOTIFICATION_QUEUE_NAME,
+  type BookingCancellationJobPayload,
   type BookingConfirmationJobPayload,
+  type BookingNotificationJobPayload,
 } from "../queues/notification.queue.js";
 import { EmailService } from "../services/email.service.js";
 
@@ -18,12 +21,51 @@ export type ConfirmationMailerPort = {
   sendConfirmation: (payload: BookingConfirmationJobPayload) => Promise<void>;
 };
 
+export type CancellationMailerPort = {
+  sendCancellation: (payload: BookingCancellationJobPayload) => Promise<void>;
+};
+
+export type NotificationMailerPort = ConfirmationMailerPort & CancellationMailerPort;
+
 export type NotificationWorkerRuntime = {
-  worker: Worker<BookingConfirmationJobPayload>;
+  worker: Worker<BookingNotificationJobPayload>;
   connection: Redis;
-  dlq: Queue<BookingConfirmationJobPayload>;
+  dlq: Queue<BookingNotificationJobPayload>;
   close: () => Promise<void>;
 };
+
+type NotificationKind = typeof NotificationType.CONFIRMATION | typeof NotificationType.CANCELLATION;
+
+function notificationKindForJobName(name: string): NotificationKind | null {
+  if (name === BOOKING_CONFIRMATION_JOB_NAME) {
+    return NotificationType.CONFIRMATION;
+  }
+  if (name === BOOKING_CANCELLATION_JOB_NAME) {
+    return NotificationType.CANCELLATION;
+  }
+  return null;
+}
+
+async function updateNotificationJobs(
+  store: NotificationJobStore,
+  bookingId: string,
+  type: NotificationKind,
+  status: typeof NotificationStatus.SENT | typeof NotificationStatus.FAILED,
+): Promise<number> {
+  const result = await store.notificationJob.updateMany({
+    where: {
+      bookingId,
+      type,
+      status: NotificationStatus.PENDING,
+    },
+    data: {
+      status,
+      ...(status === NotificationStatus.SENT ? { sentAt: new Date() } : {}),
+    },
+  });
+
+  return result.count;
+}
 
 /**
  * Mark PENDING CONFIRMATION rows for a booking.
@@ -35,19 +77,15 @@ export async function updateConfirmationJobs(
   bookingId: string,
   status: typeof NotificationStatus.SENT | typeof NotificationStatus.FAILED,
 ): Promise<number> {
-  const result = await store.notificationJob.updateMany({
-    where: {
-      bookingId,
-      type: NotificationType.CONFIRMATION,
-      status: NotificationStatus.PENDING,
-    },
-    data: {
-      status,
-      ...(status === NotificationStatus.SENT ? { sentAt: new Date() } : {}),
-    },
-  });
+  return updateNotificationJobs(store, bookingId, NotificationType.CONFIRMATION, status);
+}
 
-  return result.count;
+export async function updateCancellationJobs(
+  store: NotificationJobStore,
+  bookingId: string,
+  status: typeof NotificationStatus.SENT | typeof NotificationStatus.FAILED,
+): Promise<number> {
+  return updateNotificationJobs(store, bookingId, NotificationType.CANCELLATION, status);
 }
 
 export async function processBookingConfirmation(
@@ -61,6 +99,22 @@ export async function processBookingConfirmation(
 
   if (updated === 0) {
     console.warn("[NotificationWorker] No PENDING CONFIRMATION NotificationJob to mark SENT", {
+      bookingId: payload.bookingId,
+    });
+  }
+}
+
+export async function processBookingCancellation(
+  payload: BookingCancellationJobPayload,
+  mailer: CancellationMailerPort,
+  store: NotificationJobStore = prisma,
+): Promise<void> {
+  await mailer.sendCancellation(payload);
+
+  const updated = await updateCancellationJobs(store, payload.bookingId, NotificationStatus.SENT);
+
+  if (updated === 0) {
+    console.warn("[NotificationWorker] No PENDING CANCELLATION NotificationJob to mark SENT", {
       bookingId: payload.bookingId,
     });
   }
@@ -89,9 +143,27 @@ export async function handleFinalConfirmationFailure(
   }
 }
 
+export async function handleFinalCancellationFailure(
+  payload: BookingCancellationJobPayload,
+  store: NotificationJobStore,
+  enqueueDlq?: (payload: BookingCancellationJobPayload) => Promise<void>,
+): Promise<void> {
+  const updated = await updateCancellationJobs(store, payload.bookingId, NotificationStatus.FAILED);
+
+  if (updated === 0) {
+    console.warn("[NotificationWorker] No PENDING CANCELLATION NotificationJob to mark FAILED", {
+      bookingId: payload.bookingId,
+    });
+  }
+
+  if (enqueueDlq) {
+    await enqueueDlq(payload);
+  }
+}
+
 export function createNotificationWorker(options: {
   redisUrl: string;
-  emailService?: ConfirmationMailerPort;
+  emailService?: NotificationMailerPort;
   store?: NotificationJobStore;
 }): NotificationWorkerRuntime {
   const emailService = options.emailService ?? new EmailService();
@@ -101,19 +173,26 @@ export function createNotificationWorker(options: {
     maxRetriesPerRequest: null,
   });
 
-  const dlq = new Queue<BookingConfirmationJobPayload>(NOTIFICATION_DLQ_NAME, {
+  const dlq = new Queue<BookingNotificationJobPayload>(NOTIFICATION_DLQ_NAME, {
     connection,
   });
 
-  const worker = new Worker<BookingConfirmationJobPayload>(
+  const worker = new Worker<BookingNotificationJobPayload>(
     NOTIFICATION_QUEUE_NAME,
     async (job) => {
-      if (job.name !== BOOKING_CONFIRMATION_JOB_NAME) {
-        throw new Error(`Unsupported notification job: ${job.name}`);
+      if (job.name === BOOKING_CONFIRMATION_JOB_NAME) {
+        // Send errors propagate so BullMQ can retry (3 attempts, exponential backoff).
+        await processBookingConfirmation(job.data, emailService, store);
+        return;
       }
 
-      // Send errors propagate so BullMQ can retry (3 attempts, exponential backoff).
-      await processBookingConfirmation(job.data, emailService, store);
+      if (job.name === BOOKING_CANCELLATION_JOB_NAME) {
+        // Send errors propagate so BullMQ can retry (3 attempts, exponential backoff).
+        await processBookingCancellation(job.data, emailService, store);
+        return;
+      }
+
+      throw new Error(`Unsupported notification job: ${job.name}`);
     },
     { connection },
   );
@@ -137,11 +216,23 @@ export function createNotificationWorker(options: {
       return;
     }
 
-    void handleFinalConfirmationFailure(job.data, store, async (payload) => {
-      await dlq.add(BOOKING_CONFIRMATION_JOB_NAME, payload, {
-        jobId: job.id ?? `booking:${payload.bookingId}:confirmation:failed`,
+    const notificationKind = notificationKindForJobName(job.name);
+    if (!notificationKind) {
+      return;
+    }
+
+    const enqueueDlq = async (payload: BookingNotificationJobPayload): Promise<void> => {
+      await dlq.add(job.name, payload, {
+        jobId: job.id ?? `booking:${payload.bookingId}:${notificationKind.toLowerCase()}:failed`,
       });
-    }).catch((dlqErr: unknown) => {
+    };
+
+    const handler =
+      job.name === BOOKING_CONFIRMATION_JOB_NAME
+        ? handleFinalConfirmationFailure(job.data, store, enqueueDlq)
+        : handleFinalCancellationFailure(job.data, store, enqueueDlq);
+
+    void handler.catch((dlqErr: unknown) => {
       console.error("[NotificationWorker] Failed to record final failure / DLQ", {
         jobId: job.id,
         bookingId: job.data.bookingId,

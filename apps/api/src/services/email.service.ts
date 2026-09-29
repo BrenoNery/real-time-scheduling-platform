@@ -1,5 +1,8 @@
 import { createTransport, type Transporter } from "nodemailer";
-import type { BookingConfirmationJobPayload } from "../queues/notification.queue.js";
+import type {
+  BookingCancellationJobPayload,
+  BookingConfirmationJobPayload,
+} from "../queues/notification.queue.js";
 
 export type ConfirmationMailer = Pick<Transporter, "sendMail" | "close">;
 
@@ -31,6 +34,23 @@ export class EmailService {
         `Booking ID: ${payload.bookingId}`,
         "",
         "Thank you.",
+      ].join("\n"),
+    });
+  }
+
+  async sendCancellation(payload: BookingCancellationJobPayload): Promise<void> {
+    await this.transport.sendMail({
+      from: "Scheduling Platform <noreply@scheduling.local>",
+      to: payload.clientEmail,
+      subject: `Booking cancelled: ${payload.serviceName}`,
+      text: [
+        `Hello ${payload.clientName},`,
+        "",
+        `Your booking for ${payload.serviceName} was cancelled.`,
+        `When: ${payload.slotStartsAt}`,
+        `Booking ID: ${payload.bookingId}`,
+        "",
+        "If this was unexpected, please contact support.",
       ].join("\n"),
     });
   }
