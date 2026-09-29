@@ -6,6 +6,7 @@ import {
   type ListBookingsQuery,
 } from "@repo/shared";
 import {
+  enqueueBookingCancellation,
   enqueueBookingConfirmation,
   type BookingConfirmationJobPayload,
 } from "../queues/notification.queue.js";
@@ -97,7 +98,7 @@ export class BookingService {
    * Already-cancelled bookings return NOT_FOUND (same as missing).
    */
   async cancelBooking(id: string): Promise<BookingWithRelations> {
-    return this.prisma.$transaction(async (tx) => {
+    const booking = await this.prisma.$transaction(async (tx) => {
       const rows = await tx.$queryRaw<Array<{ id: string; status: string; slot_id: string }>>`
         SELECT id, status, slot_id
         FROM bookings
@@ -130,6 +131,10 @@ export class BookingService {
 
       return booking;
     });
+
+    await this.enqueueCancellationSafe(booking);
+
+    return booking;
   }
 
   /**
@@ -166,6 +171,46 @@ export class BookingService {
     } catch (err) {
       // Redis/BullMQ outages must not fail the booking after COMMIT.
       console.error("[BookingService] Failed to enqueue BullMQ booking.confirmation", {
+        bookingId: booking.id,
+        err,
+      });
+    }
+  }
+
+  /**
+   * Persist PENDING NotificationJob and enqueue BullMQ `booking.cancellation`.
+   * Errors are logged and swallowed so the HTTP response stays 200.
+   */
+  private async enqueueCancellationSafe(booking: BookingWithRelations): Promise<void> {
+    const payload: BookingConfirmationJobPayload = {
+      bookingId: booking.id,
+      clientEmail: booking.client.email,
+      clientName: booking.client.name,
+      slotStartsAt: booking.slot.startsAt.toISOString(),
+      serviceName: booking.slot.service.name,
+    };
+
+    try {
+      await this.prisma.notificationJob.create({
+        data: {
+          bookingId: booking.id,
+          type: "CANCELLATION",
+          status: "PENDING",
+          payload,
+        },
+      });
+    } catch (err) {
+      console.error("[BookingService] Failed to persist NotificationJob after cancel commit", {
+        bookingId: booking.id,
+        err,
+      });
+    }
+
+    try {
+      await enqueueBookingCancellation(payload);
+    } catch (err) {
+      // Redis/BullMQ outages must not fail cancellation after COMMIT.
+      console.error("[BookingService] Failed to enqueue BullMQ booking.cancellation", {
         bookingId: booking.id,
         err,
       });
