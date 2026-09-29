@@ -1,8 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { Role, SlotStatus } from "@repo/database";
 
 import { getApiUrl } from "@/lib/api";
+import { prisma } from "@/lib/db";
+
+const MAX_CLIENT_NAME_LENGTH = 200;
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export type BookingActionResult = { ok: true } | { ok: false; code: string; message: string };
 
@@ -65,6 +71,85 @@ async function parseApiError(response: Response): Promise<BookingActionResult> {
   } catch {
     return parseApiErrorBody(undefined, response.status);
   }
+}
+
+export type BookPublicSlotInput = {
+  serviceId: string;
+  slotId: string;
+  name: string;
+  email: string;
+};
+
+function validationError(message: string): BookingActionResult {
+  return { ok: false, code: "VALIDATION_ERROR", message };
+}
+
+async function resolveClientId(name: string, email: string): Promise<BookingActionResult | { clientId: string }> {
+  const trimmedName = name.trim();
+  const normalizedEmail = email.trim().toLowerCase();
+
+  if (trimmedName.length === 0) {
+    return validationError("Please enter your name.");
+  }
+
+  if (trimmedName.length > MAX_CLIENT_NAME_LENGTH) {
+    return validationError(`Name must be at most ${MAX_CLIENT_NAME_LENGTH} characters.`);
+  }
+
+  if (!EMAIL_PATTERN.test(normalizedEmail)) {
+    return validationError("Please enter a valid email address.");
+  }
+
+  const existing = await prisma.user.findUnique({
+    where: { email: normalizedEmail },
+  });
+
+  if (existing) {
+    if (existing.role !== Role.CLIENT) {
+      return validationError("This email is already registered with a different account type.");
+    }
+
+    return { clientId: existing.id };
+  }
+
+  const created = await prisma.user.create({
+    data: {
+      email: normalizedEmail,
+      name: trimmedName,
+      role: Role.CLIENT,
+    },
+  });
+
+  return { clientId: created.id };
+}
+
+export async function bookPublicSlot(input: BookPublicSlotInput): Promise<BookingActionResult> {
+  const slot = await prisma.timeSlot.findFirst({
+    where: {
+      id: input.slotId,
+      serviceId: input.serviceId,
+      status: SlotStatus.AVAILABLE,
+    },
+    select: { id: true },
+  });
+
+  if (!slot) {
+    return validationError("This slot is no longer available. Please choose another time.");
+  }
+
+  const clientResult = await resolveClientId(input.name, input.email);
+  if (!("clientId" in clientResult)) {
+    return clientResult;
+  }
+
+  const bookingResult = await bookSlot(input.slotId, clientResult.clientId);
+  if (!bookingResult.ok) {
+    return bookingResult;
+  }
+
+  revalidatePath("/book");
+  revalidatePath(`/book/${input.serviceId}`);
+  return { ok: true };
 }
 
 export async function bookSlot(slotId: string, clientId: string): Promise<BookingActionResult> {
