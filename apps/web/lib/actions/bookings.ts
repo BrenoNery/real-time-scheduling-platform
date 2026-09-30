@@ -84,7 +84,10 @@ function validationError(message: string): BookingActionResult {
   return { ok: false, code: "VALIDATION_ERROR", message };
 }
 
-async function resolveClientId(name: string, email: string): Promise<BookingActionResult | { clientId: string }> {
+async function resolveClientId(
+  name: string,
+  email: string,
+): Promise<BookingActionResult | { clientId: string }> {
   const trimmedName = name.trim();
   const normalizedEmail = email.trim().toLowerCase();
 
