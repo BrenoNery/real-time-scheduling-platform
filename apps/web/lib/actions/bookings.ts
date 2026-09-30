@@ -112,15 +112,30 @@ async function resolveClientId(name: string, email: string): Promise<BookingActi
     return { clientId: existing.id };
   }
 
-  const created = await prisma.user.create({
-    data: {
-      email: normalizedEmail,
-      name: trimmedName,
-      role: Role.CLIENT,
-    },
-  });
+  try {
+    const created = await prisma.user.create({
+      data: {
+        email: normalizedEmail,
+        name: trimmedName,
+        role: Role.CLIENT,
+      },
+    });
 
-  return { clientId: created.id };
+    return { clientId: created.id };
+  } catch (err) {
+    const code = isRecord(err) ? err.code : undefined;
+    if (code === "P2002") {
+      const raced = await prisma.user.findUnique({
+        where: { email: normalizedEmail },
+      });
+
+      if (raced?.role === Role.CLIENT) {
+        return { clientId: raced.id };
+      }
+    }
+
+    throw err;
+  }
 }
 
 export async function bookPublicSlot(input: BookPublicSlotInput): Promise<BookingActionResult> {
@@ -134,7 +149,11 @@ export async function bookPublicSlot(input: BookPublicSlotInput): Promise<Bookin
   });
 
   if (!slot) {
-    return validationError("This slot is no longer available. Please choose another time.");
+    return {
+      ok: false,
+      code: "SLOT_UNAVAILABLE",
+      message: "This slot is no longer available. Please choose another time.",
+    };
   }
 
   const clientResult = await resolveClientId(input.name, input.email);
