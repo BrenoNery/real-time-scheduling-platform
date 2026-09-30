@@ -495,12 +495,14 @@ All API errors follow a consistent envelope:
 | Concurrency | Custom script           | Parallel booking attempts against same slot |
 | E2E         | Playwright              | Full booking flow through UI                |
 
-### Security (Future Phases)
+### Security (Phase 6)
 
-- JWT-based authentication (Fastify `@fastify/jwt`)
-- Role-based access control (Provider vs Client)
-- Rate limiting on booking endpoint (`@fastify/rate-limit`)
-- CORS restricted to web origin
+Tracked in **Phase 6 — Authentication & Access Control**. SMS, webhooks, production deploy, `REMINDER` jobs, and `COMPLETED` transitions stay out of this phase.
+
+- JWT-based authentication (Fastify `@fastify/jwt`) — BRE-90
+- Role-based access control (Provider vs Client) — BRE-91
+- Rate limiting on booking creation (`@fastify/rate-limit`) — BRE-92
+- CORS restricted to the web origin — BRE-93
 
 ---
 
@@ -508,17 +510,18 @@ All API errors follow a consistent envelope:
 
 The following Issues live in the Linear project **[Real-Time Scheduling Platform](https://linear.app/breno-nery/project/real-time-scheduling-platform-8335a3f3ee49)**. Development is organized into **Milestones (phases)** to track progress across the roadmap.
 
-> **Note on numbering:** The Linear team already had prior issues, so live identifiers start at **BRE-33**. The `BRE-1 … BRE-12` labels below are documentation references; the mapping to live Linear IDs is in the phase table.
+> **Note on numbering:** The Linear team already had prior issues, so live identifiers start at **BRE-33**. The `BRE-1 … BRE-21` labels below are documentation references; the mapping to live Linear IDs is in the phase table.
 
 ### Development Phases (Milestones)
 
-| Milestone                                   | Target     | Issues (Linear ID)                     | Goal                                                            |
-| ------------------------------------------- | ---------- | -------------------------------------- | --------------------------------------------------------------- |
-| **Phase 1 — Foundation & Data**             | 2026-07-26 | BRE-33, BRE-34, BRE-35, BRE-44         | Monorepo, infra, Prisma schema, seed data                       |
-| **Phase 2 — Backend Core & Concurrency**    | 2026-08-09 | BRE-36, BRE-37, BRE-41                 | Fastify API, locking PoC, booking CRUD                          |
-| **Phase 3 — Frontend & SSR Dashboard**      | 2026-08-23 | BRE-38, BRE-40, BRE-43                 | Next.js, SSR dashboard, Server Actions                          |
-| **Phase 4 — Notifications & Delivery**      | 2026-09-06 | BRE-45, BRE-42                         | BullMQ email worker, CI pipeline                                |
-| **Phase 5 — Availability & Public Booking** | 2026-09-20 | BRE-76, BRE-77, BRE-78, BRE-79, BRE-80 | Rebookable cancel, slots API, public `/book`, cancel email, E2E |
+| Milestone                                     | Target     | Issues (Linear ID)                     | Goal                                                            |
+| --------------------------------------------- | ---------- | -------------------------------------- | --------------------------------------------------------------- |
+| **Phase 1 — Foundation & Data**               | 2026-07-26 | BRE-33, BRE-34, BRE-35, BRE-44         | Monorepo, infra, Prisma schema, seed data                       |
+| **Phase 2 — Backend Core & Concurrency**      | 2026-08-09 | BRE-36, BRE-37, BRE-41                 | Fastify API, locking PoC, booking CRUD                          |
+| **Phase 3 — Frontend & SSR Dashboard**        | 2026-08-23 | BRE-38, BRE-40, BRE-43                 | Next.js, SSR dashboard, Server Actions                          |
+| **Phase 4 — Notifications & Delivery**        | 2026-09-06 | BRE-45, BRE-42                         | BullMQ email worker, CI pipeline                                |
+| **Phase 5 — Availability & Public Booking**   | 2026-09-20 | BRE-76, BRE-77, BRE-78, BRE-79, BRE-80 | Rebookable cancel, slots API, public `/book`, cancel email, E2E |
+| **Phase 6 — Authentication & Access Control** | 2026-10-18 | BRE-90, BRE-91, BRE-92, BRE-93         | JWT login, Provider/Client access, booking rate limit, CORS     |
 
 ### Doc → Linear ID Mapping
 
@@ -541,6 +544,10 @@ The following Issues live in the Linear project **[Real-Time Scheduling Platform
 | BRE-15  | BRE-78    | Phase 5   |
 | BRE-16  | BRE-79    | Phase 5   |
 | BRE-17  | BRE-80    | Phase 5   |
+| BRE-18  | BRE-90    | Phase 6   |
+| BRE-19  | BRE-91    | Phase 6   |
+| BRE-20  | BRE-92    | Phase 6   |
+| BRE-21  | BRE-93    | Phase 6   |
 
 ---
 
@@ -866,6 +873,83 @@ Add Playwright covering public book → success UX, and wire it into GitHub Acti
 
 ---
 
+### BRE-18 · `[Backend]` JWT authentication
+
+**Priority:** High  
+**Estimate:** 5 points  
+**Linear:** [BRE-90](https://linear.app/breno-nery/issue/BRE-90/backend-jwt-authentication)
+
+**Description:**  
+Users have no credential. Add a password hash and `POST /auth/login` with Fastify `@fastify/jwt` so later issues can tell a Provider from a Client.
+
+**Acceptance Criteria:**
+
+- [ ] `User` stores a password hash. Plaintext passwords are never persisted or logged
+- [ ] `POST /auth/login` returns a JWT whose payload includes the user id and role
+- [ ] Unknown email or wrong password returns 401 and no token
+- [ ] Seed demo provider and demo clients can log in
+- [ ] Integration tests cover a successful login and a rejected login
+
+---
+
+### BRE-19 · `[Backend]` Provider and Client access control
+
+**Priority:** High  
+**Estimate:** 5 points  
+**Blocked by:** BRE-18  
+**Linear:** [BRE-91](https://linear.app/breno-nery/issue/BRE-91/backend-provider-and-client-access-control)
+
+**Description:**  
+Require the JWT from BRE-18. Dashboard and provider mutations require `PROVIDER`. `POST /bookings` requires `CLIENT` and uses the token subject instead of a `clientId` in the body. `ADMIN` stays unused.
+
+**Acceptance Criteria:**
+
+- [ ] Missing JWT returns 401; the wrong role returns 403
+- [ ] Dashboard pages and slot generation, block, and unblock require `PROVIDER`
+- [ ] `POST /bookings` books the authenticated client and rejects a body `clientId`
+- [ ] `/book` signs in or registers a client and sends that token
+- [ ] One confirmed booking per slot and `409 SLOT_UNAVAILABLE` stay as they are
+
+---
+
+### BRE-20 · `[Backend]` Rate limit on booking creation
+
+**Priority:** Medium  
+**Estimate:** 3 points  
+**Blocked by:** BRE-19  
+**Linear:** [BRE-92](https://linear.app/breno-nery/issue/BRE-92/backend-rate-limit-on-booking-creation)
+
+**Description:**  
+Apply `@fastify/rate-limit` to `POST /bookings` only, keyed per authenticated client.
+
+**Acceptance Criteria:**
+
+- [ ] Requests over the configured limit return 429 with the existing error envelope
+- [ ] Requests under the limit still create a booking and still return 409 on conflict
+- [ ] Health checks, slot reads, and dashboard reads are not limited by this rule
+- [ ] Integration tests cover one accepted request and one 429
+
+---
+
+### BRE-21 · `[Backend]` Restrict CORS to the web origin
+
+**Priority:** Medium  
+**Estimate:** 2 points  
+**Blocked by:** BRE-20  
+**Linear:** [BRE-93](https://linear.app/breno-nery/issue/BRE-93/backend-restrict-cors-to-the-web-origin)
+
+**Description:**  
+Allow browser calls only from the configured web origin via `@fastify/cors`.
+
+**Acceptance Criteria:**
+
+- [ ] The configured web origin can call the API, including local booking
+- [ ] Any other `Origin` is rejected
+- [ ] `Access-Control-Allow-Origin` is never `*`
+- [ ] The allowed origin is documented in `.env.example`
+
+---
+
 ## Issue Dependency Graph
 
 ```mermaid
@@ -887,6 +971,10 @@ flowchart TD
     BRE15["BRE-15<br/>Cancel Email"]
     BRE16["BRE-16<br/>Public /book"]
     BRE17["BRE-17<br/>Playwright E2E"]
+    BRE18["BRE-18<br/>JWT Login"]
+    BRE19["BRE-19<br/>Access Control"]
+    BRE20["BRE-20<br/>Booking Rate Limit"]
+    BRE21["BRE-21<br/>CORS"]
 
     BRE1 --> BRE2
     BRE1 --> BRE3
@@ -912,6 +1000,10 @@ flowchart TD
     BRE13 --> BRE16
     BRE14 --> BRE16
     BRE16 --> BRE17
+    BRE17 --> BRE18
+    BRE18 --> BRE19
+    BRE19 --> BRE20
+    BRE20 --> BRE21
 ```
 
-**Recommended execution order:** BRE-1 → BRE-2 → BRE-3 → (BRE-4 ∥ BRE-6) → BRE-5 → BRE-7 → BRE-8 → BRE-9 → BRE-10 → BRE-11 → BRE-12 → BRE-13 → (BRE-14 ∥ BRE-15) → BRE-16 → BRE-17
+**Recommended execution order:** BRE-1 → BRE-2 → BRE-3 → (BRE-4 ∥ BRE-6) → BRE-5 → BRE-7 → BRE-8 → BRE-9 → BRE-10 → BRE-11 → BRE-12 → BRE-13 → (BRE-14 ∥ BRE-15) → BRE-16 → BRE-17 → BRE-18 → BRE-19 → BRE-20 → BRE-21
