@@ -32,6 +32,13 @@ coverage/
 # Next.js generates this file (next typegen / next dev / next build)
 **/next-env.d.ts
 
+# Playwright
+**/test-results/
+**/playwright-report/
+**/blob-report/
+**/playwright/.cache/
+
 # Misc
 .turbo/
 .vercel/
+

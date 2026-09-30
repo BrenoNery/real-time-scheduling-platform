@@ -105,6 +105,67 @@ jobs:
       - run: npm run db:migrate:deploy --workspace=@repo/database
       - run: npm run test:integration
 
+  test-e2e:
+    name: test (e2e)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: scheduling_platform
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/scheduling_platform
+      REDIS_URL: redis://localhost:6379
+      SMTP_HOST: localhost
+      SMTP_PORT: "1025"
+      API_URL: http://localhost:3333
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run db:generate --workspace=@repo/database
+      - run: npm run build --workspace=@repo/database
+      - run: npm run build --workspace=@repo/shared
+      - run: npm run db:migrate:deploy --workspace=@repo/database
+      - name: Write root .env for seed and start scripts
+        run: |
+          cat > .env <<EOF
+          DATABASE_URL=$DATABASE_URL
+          REDIS_URL=$REDIS_URL
+          SMTP_HOST=$SMTP_HOST
+          SMTP_PORT=$SMTP_PORT
+          API_URL=$API_URL
+          PORT=3333
+          EOF
+      - run: npm run db:seed --workspace=@repo/database
+      - run: npm run build --workspace=@repo/api
+      - run: npm run build --workspace=@repo/web
+      - name: Install Playwright Chromium
+        run: npx playwright install chromium --with-deps
+        working-directory: apps/web
+      - run: npm run test:e2e
+
   build:
     name: build
     runs-on: ubuntu-latest
