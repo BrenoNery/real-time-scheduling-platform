@@ -287,15 +287,18 @@ The following Issues are planned for creation in Linear upon documentation appro
 | 🟢 Low    | Seed data & demo scenarios           | `[Database]` |
 | 🟢 Low    | CI pipeline (lint, test, build)      | `[DevOps]`   |
 
-Phases 1–4 of that initial roadmap are **complete**. The active milestone is **Phase 5 — Availability & Public Booking**:
+Phases 1–5 of that roadmap are **complete**, including Phase 5 — Availability & Public Booking (BRE-76, BRE-77, BRE-78, BRE-79, BRE-80).
 
-| Priority  | Issue                                  | Context      | Linear |
-| --------- | -------------------------------------- | ------------ | ------ |
-| 🔴 Urgent | Rebookable slot cancellations          | `[Database]` | BRE-76 |
-| 🟠 High   | Slot availability API & advisory locks | `[Backend]`  | BRE-77 |
-| 🟠 High   | Public booking flow `/book`            | `[Frontend]` | BRE-79 |
-| 🟡 Medium | Cancellation notification jobs         | `[Backend]`  | BRE-78 |
-| 🟡 Medium | Playwright E2E booking flow            | `[DevOps]`   | BRE-80 |
+The active milestone is **Phase 6 — Authentication & Access Control**:
+
+| Priority  | Issue                              | Context     | Linear |
+| --------- | ---------------------------------- | ----------- | ------ |
+| 🟠 High   | JWT authentication                 | `[Backend]` | BRE-90 |
+| 🟠 High   | Provider and Client access control | `[Backend]` | BRE-91 |
+| 🟡 Medium | Rate limit on booking creation     | `[Backend]` | BRE-92 |
+| 🟡 Medium | Restrict CORS to the web origin    | `[Backend]` | BRE-93 |
+
+BRE-81 stays in the backlog until a published `@prisma/config` depends on `deepmerge-ts` ≥ 8. SMS, webhooks, production deploy, reminder jobs, and `COMPLETED` transitions are not part of this phase.
 
 ---
 
