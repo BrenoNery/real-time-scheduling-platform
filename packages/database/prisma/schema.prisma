@@ -38,12 +38,15 @@ enum NotificationStatus {
 }
 
 model User {
-  id        String   @id @default(uuid()) @db.Uuid
-  email     String   @unique
-  name      String
-  role      Role
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id           String   @id @default(uuid()) @db.Uuid
+  email        String   @unique
+  name         String
+  role         Role
+  // Self-contained scrypt hash from hashPassword() in src/password.ts; never plaintext.
+  // Nullable until BRE-91: users created by the /book flow have no password and cannot log in.
+  passwordHash String?  @map("password_hash")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
   services Service[]
   bookings Booking[]

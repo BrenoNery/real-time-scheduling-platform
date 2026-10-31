@@ -20,3 +20,5 @@ export {
   NotificationStatus,
 } from "@prisma/client";
 export type * from "@prisma/client";
+
+export { hashPassword, verifyPassword } from "./password.js";

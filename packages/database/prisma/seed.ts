@@ -1,10 +1,13 @@
 import { PrismaClient, Role, SlotStatus, BookingStatus } from "@prisma/client";
+import { hashPassword } from "../src/password.js";
 
 const prisma = new PrismaClient();
 
 /** Stable demo emails used as upsert keys. */
 const DEMO_PROVIDER_EMAIL = "provider@demo.local";
 const DEMO_CLIENT_EMAILS = ["client1@demo.local", "client2@demo.local"] as const;
+/** Local demo login for every demo user (documented in README). Only its hash is stored. */
+const DEMO_PASSWORD = "demo-password";
 
 const DEMO_SERVICES = [
   {
@@ -25,25 +28,29 @@ const DEMO_SERVICES = [
  * never hit unique constraints or multiply rows.
  */
 async function seed() {
+  const providerPasswordHash = await hashPassword(DEMO_PASSWORD);
   const provider = await prisma.user.upsert({
     where: { email: DEMO_PROVIDER_EMAIL },
-    update: { name: "Demo Provider", role: Role.PROVIDER },
+    update: { name: "Demo Provider", role: Role.PROVIDER, passwordHash: providerPasswordHash },
     create: {
       email: DEMO_PROVIDER_EMAIL,
       name: "Demo Provider",
       role: Role.PROVIDER,
+      passwordHash: providerPasswordHash,
     },
   });
 
   const clients = [];
   for (const [index, email] of DEMO_CLIENT_EMAILS.entries()) {
+    const passwordHash = await hashPassword(DEMO_PASSWORD);
     const client = await prisma.user.upsert({
       where: { email },
-      update: { name: `Demo Client ${index + 1}`, role: Role.CLIENT },
+      update: { name: `Demo Client ${index + 1}`, role: Role.CLIENT, passwordHash },
       create: {
         email,
         name: `Demo Client ${index + 1}`,
         role: Role.CLIENT,
+        passwordHash,
       },
     });
     clients.push(client);
