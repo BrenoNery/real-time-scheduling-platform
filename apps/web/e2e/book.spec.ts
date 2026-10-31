@@ -1,6 +1,16 @@
+import { randomUUID } from "node:crypto";
 import { expect, test, type Page } from "@playwright/test";
 
 test.describe.configure({ mode: "serial" });
+
+const CLIENT_PASSWORD = "e2e-client-password";
+
+/** Registers a new client on the open booking form; unique emails keep reruns deterministic. */
+async function fillNewClient(page: Page, name: string): Promise<void> {
+  await page.locator("#book-name").fill(name);
+  await page.locator("#book-email").fill(`e2e.${randomUUID()}@example.com`);
+  await page.locator("#book-password").fill(CLIENT_PASSWORD);
+}
 
 async function openServiceSlots(page: Page, serviceName: string): Promise<void> {
   await page.goto("/book");
@@ -23,11 +33,12 @@ test("books an available Consultation slot from /book", async ({ page }) => {
   await openServiceSlots(page, "Consultation");
   await selectFirstAvailableSlot(page);
 
-  await page.locator("#book-name").fill("E2E Success Client");
-  await page.locator("#book-email").fill("e2e.success@example.com");
+  await fillNewClient(page, "E2E Success Client");
   await page.getByRole("button", { name: "Confirm booking" }).click();
 
   await expect(page.getByText("Booking confirmed.")).toBeVisible();
+  // The session cookie now holds the client token, so the next booking needs no credentials.
+  await expect(page.getByText("Booking as E2E Success Client")).toBeVisible();
 });
 
 test("shows Slot unavailable when a second client books the same Deep Dive slot", async ({
@@ -45,10 +56,8 @@ test("shows Slot unavailable when a second client books the same Deep Dive slot"
     await selectFirstAvailableSlot(pageA);
     await selectFirstAvailableSlot(pageB);
 
-    await pageA.locator("#book-name").fill("E2E Conflict First");
-    await pageA.locator("#book-email").fill("e2e.conflict@example.com");
-    await pageB.locator("#book-name").fill("E2E Conflict Second");
-    await pageB.locator("#book-email").fill("e2e.conflict2@example.com");
+    await fillNewClient(pageA, "E2E Conflict First");
+    await fillNewClient(pageB, "E2E Conflict Second");
 
     await pageA.getByRole("button", { name: "Confirm booking" }).click();
     await expect(pageA.getByText("Booking confirmed.")).toBeVisible();
@@ -59,4 +68,17 @@ test("shows Slot unavailable when a second client books the same Deep Dive slot"
     await contextA.close();
     await contextB.close();
   }
+});
+
+test("dashboard requires a provider session", async ({ page }) => {
+  await page.goto("/dashboard/bookings");
+  await expect(page).toHaveURL(/\/login$/);
+
+  await page.locator("#login-email").fill("provider@demo.local");
+  await page.locator("#login-password").fill("demo-password");
+  await page.getByRole("button", { name: "Sign in" }).click();
+
+  await expect(page).toHaveURL(/\/dashboard$/);
+  await page.getByRole("link", { name: "View Bookings →" }).click();
+  await expect(page.getByRole("heading", { name: "Bookings" })).toBeVisible();
 });

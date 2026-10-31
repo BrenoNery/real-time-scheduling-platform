@@ -1,147 +1,94 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { Role, SlotStatus } from "@repo/database";
+import { SlotStatus } from "@repo/database";
 
-import { getApiUrl } from "@/lib/api";
+import {
+  getApiUrl,
+  networkFailure,
+  parseApiError,
+  requestToken,
+  type ActionError,
+  type ActionResult,
+} from "@/lib/api";
 import { prisma } from "@/lib/db";
+import { clearSessionCookie, getSessionToken, setSessionCookie } from "@/lib/session";
 
 const MAX_CLIENT_NAME_LENGTH = 200;
 
+const MIN_PASSWORD_LENGTH = 8;
+
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export type BookingActionResult = { ok: true } | { ok: false; code: string; message: string };
-
-function networkFailure(err: unknown): BookingActionResult {
-  if (err instanceof Error && err.message.includes("API_URL")) {
-    return {
-      ok: false,
-      code: "NETWORK_ERROR",
-      message: "API_URL is not set. Add it to the root .env and restart Next.js.",
-    };
-  }
-
-  return {
-    ok: false,
-    code: "NETWORK_ERROR",
-    message: "Could not reach the booking API. Is it running?",
-  };
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-function parseApiErrorBody(body: unknown, status: number): BookingActionResult {
-  if (isRecord(body) && isRecord(body.error)) {
-    const code = body.error.code;
-    const message = body.error.message;
-    if (typeof code === "string" && typeof message === "string") {
-      return { ok: false, code, message };
-    }
-  }
-
-  // Fastify uncaught Prisma errors: { statusCode, code, error, message }
-  const prismaCode = isRecord(body) ? body.code : undefined;
-  const prismaMessage = isRecord(body) ? body.message : undefined;
-  const text = typeof prismaMessage === "string" ? prismaMessage : "";
-
-  if (prismaCode === "P2002" && (text.includes("slot_id") || text.includes("slotId"))) {
-    return {
-      ok: false,
-      code: "SLOT_UNAVAILABLE",
-      message: "This slot already has an active booking, so it cannot be booked again.",
-    };
-  }
-
-  return {
-    ok: false,
-    code: typeof prismaCode === "string" ? prismaCode : "INTERNAL_ERROR",
-    message:
-      status >= 500
-        ? "Something went wrong on the server. Please try again."
-        : "The request could not be completed.",
-  };
-}
-
-async function parseApiError(response: Response): Promise<BookingActionResult> {
-  try {
-    const body: unknown = await response.json();
-    return parseApiErrorBody(body, response.status);
-  } catch {
-    return parseApiErrorBody(undefined, response.status);
-  }
-}
+export type ClientAccountInput = {
+  mode: "register" | "login";
+  name: string;
+  email: string;
+  password: string;
+};
 
 export type BookPublicSlotInput = {
   serviceId: string;
   slotId: string;
-  name: string;
-  email: string;
+  /** Omitted when the visitor is already signed in as a client. */
+  account?: ClientAccountInput;
 };
 
-function validationError(message: string): BookingActionResult {
+function validationError(message: string): ActionError {
   return { ok: false, code: "VALIDATION_ERROR", message };
 }
 
-async function resolveClientId(
-  name: string,
-  email: string,
-): Promise<BookingActionResult | { clientId: string }> {
-  const trimmedName = name.trim();
-  const normalizedEmail = email.trim().toLowerCase();
-
-  if (trimmedName.length === 0) {
-    return validationError("Please enter your name.");
+function validateAccount({ mode, name, email, password }: ClientAccountInput): ActionError | null {
+  if (mode === "register") {
+    const trimmedName = name.trim();
+    if (trimmedName.length === 0) {
+      return validationError("Please enter your name.");
+    }
+    if (trimmedName.length > MAX_CLIENT_NAME_LENGTH) {
+      return validationError(`Name must be at most ${MAX_CLIENT_NAME_LENGTH} characters.`);
+    }
   }
 
-  if (trimmedName.length > MAX_CLIENT_NAME_LENGTH) {
-    return validationError(`Name must be at most ${MAX_CLIENT_NAME_LENGTH} characters.`);
-  }
-
-  if (!EMAIL_PATTERN.test(normalizedEmail)) {
+  if (!EMAIL_PATTERN.test(email.trim())) {
     return validationError("Please enter a valid email address.");
   }
 
-  const existing = await prisma.user.findUnique({
-    where: { email: normalizedEmail },
-  });
-
-  if (existing) {
-    if (existing.role !== Role.CLIENT) {
-      return validationError("This email is already registered with a different account type.");
-    }
-
-    return { clientId: existing.id };
+  if (mode === "register" && password.length < MIN_PASSWORD_LENGTH) {
+    return validationError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
   }
 
-  try {
-    const created = await prisma.user.create({
-      data: {
-        email: normalizedEmail,
-        name: trimmedName,
-        role: Role.CLIENT,
-      },
-    });
-
-    return { clientId: created.id };
-  } catch (err) {
-    const code = isRecord(err) ? err.code : undefined;
-    if (code === "P2002") {
-      const raced = await prisma.user.findUnique({
-        where: { email: normalizedEmail },
-      });
-
-      if (raced?.role === Role.CLIENT) {
-        return { clientId: raced.id };
-      }
-    }
-
-    throw err;
+  if (password.length === 0) {
+    return validationError("Please enter your password.");
   }
+
+  return null;
 }
 
-export async function bookPublicSlot(input: BookPublicSlotInput): Promise<BookingActionResult> {
+/** Logs the client in (or registers them) and stores the token in the session cookie. */
+async function signInClient(
+  account: ClientAccountInput,
+): Promise<{ ok: true; token: string } | ActionError> {
+  const invalid = validateAccount(account);
+  if (invalid) {
+    return invalid;
+  }
+
+  const auth =
+    account.mode === "register"
+      ? await requestToken("/auth/register", {
+          name: account.name,
+          email: account.email,
+          password: account.password,
+        })
+      : await requestToken("/auth/login", { email: account.email, password: account.password });
+
+  if (auth.ok) {
+    await setSessionCookie(auth.token);
+  }
+  return auth;
+}
+
+export async function bookPublicSlot(input: BookPublicSlotInput): Promise<ActionResult> {
   const slot = await prisma.timeSlot.findFirst({
     where: {
       id: input.slotId,
@@ -159,48 +106,59 @@ export async function bookPublicSlot(input: BookPublicSlotInput): Promise<Bookin
     };
   }
 
-  const clientResult = await resolveClientId(input.name, input.email);
-  if (!("clientId" in clientResult)) {
-    return clientResult;
+  let token: string | undefined;
+  if (input.account) {
+    const auth = await signInClient(input.account);
+    if (!auth.ok) {
+      return auth;
+    }
+    token = auth.token;
+  } else {
+    token = await getSessionToken();
   }
 
-  const bookingResult = await bookSlot(input.slotId, clientResult.clientId);
-  if (!bookingResult.ok) {
-    return bookingResult;
+  if (!token) {
+    return { ok: false, code: "UNAUTHORIZED", message: "Please sign in to book." };
   }
 
-  revalidatePath("/book");
-  revalidatePath(`/book/${input.serviceId}`);
-  return { ok: true };
-}
-
-export async function bookSlot(slotId: string, clientId: string): Promise<BookingActionResult> {
   let response: Response;
-
   try {
     response = await fetch(`${getApiUrl()}/bookings`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ slotId, clientId }),
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ slotId: input.slotId }),
     });
   } catch (err) {
     return networkFailure(err);
   }
 
-  if (response.ok) {
-    revalidatePath("/dashboard/bookings");
-    return { ok: true };
+  if (!response.ok) {
+    if (response.status === 401) {
+      // Expired or invalid session: drop it so the page asks for credentials again.
+      await clearSessionCookie();
+      return {
+        ok: false,
+        code: "UNAUTHORIZED",
+        message: "Your session has expired. Please sign in again.",
+      };
+    }
+    return parseApiError(response);
   }
 
-  return parseApiError(response);
+  revalidatePath("/book");
+  revalidatePath(`/book/${input.serviceId}`);
+  revalidatePath("/dashboard/bookings");
+  return { ok: true };
 }
 
-export async function cancelBooking(bookingId: string): Promise<BookingActionResult> {
+export async function cancelBooking(bookingId: string): Promise<ActionResult> {
+  const token = await getSessionToken();
   let response: Response;
 
   try {
     response = await fetch(`${getApiUrl()}/bookings/${bookingId}`, {
       method: "DELETE",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
   } catch (err) {
     return networkFailure(err);

@@ -148,7 +148,7 @@ DATABASE_URL="postgresql://postgres:postgres@localhost:5432/scheduling_platform"
 REDIS_URL="redis://localhost:6379"
 SMTP_HOST="localhost"
 SMTP_PORT="1025"
-JWT_SECRET="local-dev-jwt-secret-change-me" # required by the API to sign login tokens
+JWT_SECRET="local-dev-jwt-secret-change-me" # required: the API signs tokens, the web verifies them
 ```
 
 ### 2. Start infrastructure services
@@ -178,7 +178,7 @@ npm run db:migrate --workspace=@repo/database
 npm run db:seed --workspace=@repo/database
 ```
 
-The seed creates demo users that can log in through `POST /auth/login` with the password `demo-password`: `provider@demo.local` (Provider), `client1@demo.local` and `client2@demo.local` (Clients).
+The seed creates demo users that can log in through `POST /auth/login` with the password `demo-password`: `provider@demo.local` (Provider), `client1@demo.local` and `client2@demo.local` (Clients). Providers sign in at `/login` to open `/dashboard`; clients log in or register (`POST /auth/register`) on `/book`.
 
 ### 4. Start application services
 

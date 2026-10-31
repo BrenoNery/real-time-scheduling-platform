@@ -1,10 +1,5 @@
 import { Prisma, type PrismaClient } from "@repo/database";
-import {
-  NotFoundError,
-  SlotUnavailableError,
-  type CreateBookingBody,
-  type ListBookingsQuery,
-} from "@repo/shared";
+import { NotFoundError, SlotUnavailableError, type ListBookingsQuery } from "@repo/shared";
 import {
   enqueueBookingCancellation,
   enqueueBookingConfirmation,
@@ -37,7 +32,13 @@ export class BookingService {
    * After COMMIT, enqueues confirmation (NotificationJob + BullMQ). Enqueue failures
    * never roll back a committed booking.
    */
-  async createBooking({ slotId, clientId }: CreateBookingBody): Promise<BookingWithRelations> {
+  async createBooking({
+    slotId,
+    clientId,
+  }: {
+    slotId: string;
+    clientId: string;
+  }): Promise<BookingWithRelations> {
     let booking: BookingWithRelations;
     try {
       booking = await this.prisma.$transaction(async (tx) => {

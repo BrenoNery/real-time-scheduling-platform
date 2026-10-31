@@ -5,6 +5,7 @@ import { BookingStatus, Role, SlotStatus, prisma } from "@repo/database";
 import { ErrorCode } from "@repo/shared";
 import type { FastifyInstance } from "fastify";
 import { buildApp } from "../src/app.js";
+import { authHeader } from "./auth-header.js";
 
 /** Far-future UTC dates so fixtures never collide with the seed data. */
 const GENERATE_DATE = "2032-03-01";
@@ -36,6 +37,7 @@ describe("Slot API CRUD (BRE-77)", () => {
   let app: FastifyInstance;
   let runId: string;
   let providerId: string;
+  let asProvider: { authorization: string };
   let serviceId: string;
   let listServiceId: string;
   let clientId: string;
@@ -54,6 +56,7 @@ describe("Slot API CRUD (BRE-77)", () => {
       },
     });
     providerId = provider.id;
+    asProvider = authHeader(app, providerId, Role.PROVIDER);
 
     const [service, listService] = await Promise.all([
       prisma.service.create({
@@ -241,6 +244,7 @@ describe("Slot API CRUD (BRE-77)", () => {
     const res = await app.inject({
       method: "POST",
       url: "/slots/generate",
+      headers: asProvider,
       payload: {
         serviceId,
         startDate: GENERATE_DATE,
@@ -284,13 +288,23 @@ describe("Slot API CRUD (BRE-77)", () => {
       windowEnd: "12:00",
     };
 
-    const first = await app.inject({ method: "POST", url: "/slots/generate", payload });
+    const first = await app.inject({
+      method: "POST",
+      url: "/slots/generate",
+      headers: asProvider,
+      payload,
+    });
     assert.equal(first.statusCode, 201);
     const firstBody = first.json() as GenerateResponse;
     assert.equal(firstBody.created.length, 6);
     const firstIds = firstBody.slots.map((slot) => slot.id).sort();
 
-    const second = await app.inject({ method: "POST", url: "/slots/generate", payload });
+    const second = await app.inject({
+      method: "POST",
+      url: "/slots/generate",
+      headers: asProvider,
+      payload,
+    });
     assert.equal(second.statusCode, 201);
     const secondBody = second.json() as GenerateResponse;
     assert.equal(secondBody.created.length, 0);
@@ -315,6 +329,7 @@ describe("Slot API CRUD (BRE-77)", () => {
     const res = await app.inject({
       method: "POST",
       url: "/slots/generate",
+      headers: asProvider,
       payload: {
         serviceId,
         startDate: "2032-03-03",
@@ -335,6 +350,7 @@ describe("Slot API CRUD (BRE-77)", () => {
     const missingService = await app.inject({
       method: "POST",
       url: "/slots/generate",
+      headers: asProvider,
       payload: {
         serviceId: randomUUID(),
         startDate: GENERATE_DATE,
@@ -364,7 +380,12 @@ describe("Slot API CRUD (BRE-77)", () => {
     ];
 
     for (const payload of invalidBodies) {
-      const res = await app.inject({ method: "POST", url: "/slots/generate", payload });
+      const res = await app.inject({
+        method: "POST",
+        url: "/slots/generate",
+        headers: asProvider,
+        payload,
+      });
       assert.equal(res.statusCode, 422, `expected 422 for ${JSON.stringify(payload)}`);
       assert.equal(
         (res.json() as { error: { code: string } }).error.code,
@@ -398,6 +419,7 @@ describe("Slot API CRUD (BRE-77)", () => {
     const res = await app.inject({
       method: "POST",
       url: "/slots/generate",
+      headers: asProvider,
       payload: {
         serviceId,
         startDate: date,
@@ -435,6 +457,7 @@ describe("Slot API CRUD (BRE-77)", () => {
     const morning = await app.inject({
       method: "POST",
       url: "/slots/generate",
+      headers: asProvider,
       payload: {
         serviceId,
         startDate: date,
@@ -450,6 +473,7 @@ describe("Slot API CRUD (BRE-77)", () => {
     const widened = await app.inject({
       method: "POST",
       url: "/slots/generate",
+      headers: asProvider,
       payload: {
         serviceId,
         startDate: date,
@@ -522,6 +546,7 @@ describe("Slot API CRUD (BRE-77)", () => {
     const blockRes = await app.inject({
       method: "PATCH",
       url: `/slots/${patchSlotId}`,
+      headers: asProvider,
       payload: { status: SlotStatus.BLOCKED },
     });
     assert.equal(blockRes.statusCode, 200);
@@ -541,7 +566,8 @@ describe("Slot API CRUD (BRE-77)", () => {
     const blockedBooking = await app.inject({
       method: "POST",
       url: "/bookings",
-      payload: { slotId: patchSlotId, clientId },
+      headers: authHeader(app, clientId, Role.CLIENT),
+      payload: { slotId: patchSlotId },
     });
     assert.equal(blockedBooking.statusCode, 409);
     assert.equal(
@@ -552,6 +578,7 @@ describe("Slot API CRUD (BRE-77)", () => {
     const unblockRes = await app.inject({
       method: "PATCH",
       url: `/slots/${patchSlotId}`,
+      headers: asProvider,
       payload: { status: SlotStatus.AVAILABLE },
     });
     assert.equal(unblockRes.statusCode, 200);
@@ -560,7 +587,8 @@ describe("Slot API CRUD (BRE-77)", () => {
     const booking = await app.inject({
       method: "POST",
       url: "/bookings",
-      payload: { slotId: patchSlotId, clientId },
+      headers: authHeader(app, clientId, Role.CLIENT),
+      payload: { slotId: patchSlotId },
     });
     assert.equal(booking.statusCode, 201);
 
@@ -572,6 +600,7 @@ describe("Slot API CRUD (BRE-77)", () => {
     const bookedBody = await app.inject({
       method: "PATCH",
       url: `/slots/${patchSlotId}`,
+      headers: asProvider,
       payload: { status: SlotStatus.BOOKED },
     });
     assert.equal(bookedBody.statusCode, 422);
@@ -583,6 +612,7 @@ describe("Slot API CRUD (BRE-77)", () => {
     const alreadyBooked = await app.inject({
       method: "PATCH",
       url: `/slots/${bookedSlotId}`,
+      headers: asProvider,
       payload: { status: SlotStatus.BLOCKED },
     });
     assert.equal(alreadyBooked.statusCode, 409);
@@ -601,6 +631,7 @@ describe("Slot API CRUD (BRE-77)", () => {
     const missing = await app.inject({
       method: "PATCH",
       url: `/slots/${randomUUID()}`,
+      headers: asProvider,
       payload: { status: SlotStatus.BLOCKED },
     });
     assert.equal(missing.statusCode, 404);
@@ -609,6 +640,7 @@ describe("Slot API CRUD (BRE-77)", () => {
     const malformed = await app.inject({
       method: "PATCH",
       url: "/slots/not-a-uuid",
+      headers: asProvider,
       payload: { status: SlotStatus.BLOCKED },
     });
     assert.equal(malformed.statusCode, 422);

@@ -1,9 +1,11 @@
 import { z } from "zod";
 
-export const createBookingBodySchema = z.object({
-  slotId: z.string().uuid(),
-  clientId: z.string().uuid(),
-});
+/** The booking client is the authenticated user, so a `clientId` in the body is rejected. */
+export const createBookingBodySchema = z
+  .object({
+    slotId: z.string().uuid(),
+  })
+  .strict();
 
 export type CreateBookingBody = z.infer<typeof createBookingBodySchema>;
 
