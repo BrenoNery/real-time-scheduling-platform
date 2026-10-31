@@ -148,6 +148,7 @@ DATABASE_URL="postgresql://postgres:postgres@localhost:5432/scheduling_platform"
 REDIS_URL="redis://localhost:6379"
 SMTP_HOST="localhost"
 SMTP_PORT="1025"
+JWT_SECRET="local-dev-jwt-secret-change-me" # required by the API to sign login tokens
 ```
 
 ### 2. Start infrastructure services
@@ -176,6 +177,8 @@ docker compose -f docker/docker-compose.yml up -d mailpit
 npm run db:migrate --workspace=@repo/database
 npm run db:seed --workspace=@repo/database
 ```
+
+The seed creates demo users that can log in through `POST /auth/login` with the password `demo-password`: `provider@demo.local` (Provider), `client1@demo.local` and `client2@demo.local` (Clients).
 
 ### 4. Start application services
 

@@ -1,6 +1,8 @@
 import Fastify from "fastify";
+import { registerJwtPlugin } from "./plugins/jwt.js";
 import { registerPrismaPlugin } from "./plugins/prisma.js";
 import { closeNotificationQueue } from "./queues/notification.queue.js";
+import { registerAuthRoutes } from "./routes/auth.js";
 import { registerBookingRoutes } from "./routes/bookings.js";
 import { registerHealthRoutes } from "./routes/health.js";
 import { registerSlotRoutes } from "./routes/slots.js";
@@ -10,8 +12,10 @@ export async function buildApp(options?: { logger?: boolean }) {
     logger: options?.logger ?? true,
   });
 
+  await registerJwtPlugin(app);
   await registerPrismaPlugin(app);
   registerHealthRoutes(app);
+  registerAuthRoutes(app);
   registerBookingRoutes(app);
   registerSlotRoutes(app);
 
