@@ -12,10 +12,11 @@
     "start": "node --env-file=../../.env dist/server.js",
     "test": "tsx --test test/notification.worker.test.ts test/slots.window.test.ts",
     "test:unit": "tsx --test test/notification.worker.test.ts test/slots.window.test.ts",
-    "test:integration": "sh -c 'if [ -f ../../.env ]; then exec tsx --env-file=../../.env --test test/auth.access.test.ts test/auth.login.test.ts test/auth.register.test.ts test/bookings.concurrency.test.ts test/bookings.crud.test.ts test/slots.concurrency.test.ts test/slots.crud.test.ts; else exec tsx --test test/auth.access.test.ts test/auth.login.test.ts test/auth.register.test.ts test/bookings.concurrency.test.ts test/bookings.crud.test.ts test/slots.concurrency.test.ts test/slots.crud.test.ts; fi'"
+    "test:integration": "sh -c 'if [ -f ../../.env ]; then exec tsx --env-file=../../.env --test test/auth.access.test.ts test/auth.login.test.ts test/auth.register.test.ts test/bookings.concurrency.test.ts test/bookings.crud.test.ts test/bookings.ratelimit.test.ts test/slots.concurrency.test.ts test/slots.crud.test.ts; else exec tsx --test test/auth.access.test.ts test/auth.login.test.ts test/auth.register.test.ts test/bookings.concurrency.test.ts test/bookings.crud.test.ts test/bookings.ratelimit.test.ts test/slots.concurrency.test.ts test/slots.crud.test.ts; fi'"
   },
   "dependencies": {
     "@fastify/jwt": "^10.2.6",
+    "@fastify/rate-limit": "^11.2.1",
     "@repo/database": "*",
     "@repo/shared": "*",
     "bullmq": "^6.0.11",

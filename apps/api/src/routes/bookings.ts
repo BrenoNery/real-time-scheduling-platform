@@ -14,7 +14,8 @@ import { BookingService } from "../services/booking.service.js";
 
 export function registerBookingRoutes(app: FastifyInstance): void {
   const bookingService = new BookingService(app.prisma);
-  const clientOnly = { preHandler: requireRole(Role.CLIENT) };
+  // The rate limit runs after requireRole (preHandler order), so only authenticated clients count.
+  const clientOnly = { preHandler: requireRole(Role.CLIENT), config: { rateLimit: {} } };
   const providerOnly = { preHandler: requireRole(Role.PROVIDER) };
 
   app.post("/bookings", clientOnly, async (request, reply) => {

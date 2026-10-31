@@ -149,7 +149,11 @@ REDIS_URL="redis://localhost:6379"
 SMTP_HOST="localhost"
 SMTP_PORT="1025"
 JWT_SECRET="local-dev-jwt-secret-change-me" # required: the API signs tokens, the web verifies them
+BOOKING_RATE_LIMIT_MAX="10"      # optional: POST /bookings per client per window (default 10)
+BOOKING_RATE_LIMIT_WINDOW="60000" # optional: window in milliseconds (default 60000 = 1 minute)
 ```
+
+`POST /bookings` is rate limited per authenticated client (in memory, per API process). Beyond the limit it returns `429` with the usual error envelope and code `RATE_LIMITED`; health, slot reads and the provider dashboard reads are not limited. Invalid limit values stop the API at startup.
 
 ### 2. Start infrastructure services
 

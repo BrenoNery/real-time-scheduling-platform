@@ -1,6 +1,7 @@
 import Fastify from "fastify";
 import { registerJwtPlugin } from "./plugins/jwt.js";
 import { registerPrismaPlugin } from "./plugins/prisma.js";
+import { registerRateLimitPlugin } from "./plugins/rate-limit.js";
 import { closeNotificationQueue } from "./queues/notification.queue.js";
 import { registerAuthRoutes } from "./routes/auth.js";
 import { registerBookingRoutes } from "./routes/bookings.js";
@@ -14,6 +15,7 @@ export async function buildApp(options?: { logger?: boolean }) {
 
   await registerJwtPlugin(app);
   await registerPrismaPlugin(app);
+  await registerRateLimitPlugin(app);
   registerHealthRoutes(app);
   registerAuthRoutes(app);
   registerBookingRoutes(app);
