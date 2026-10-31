@@ -394,12 +394,12 @@ sequenceDiagram
     participant PG as PostgreSQL
     participant Redis as Redis
 
-    Browser->>SA: bookSlot(slotId)
-    SA->>API: POST /api/bookings
+    Browser->>SA: bookPublicSlot(slotId) + session cookie
+    SA->>API: POST /bookings (Authorization: Bearer <client token>)
     API->>PG: BEGIN → FOR UPDATE → INSERT → COMMIT
     API->>Redis: enqueue confirmation job
     API-->>SA: 201 { booking }
-    SA-->>Browser: revalidatePath('/dashboard')
+    SA-->>Browser: revalidatePath('/book/:serviceId')
 ```
 
 ### 7.3 Concurrent Booking Attempt
@@ -460,7 +460,10 @@ flowchart TB
 | HTTP Status | Scenario                                                          |
 | ----------- | ----------------------------------------------------------------- |
 | `201`       | Booking created / slot generation accepted (`{ created, slots }`) |
+| `401`       | Missing, invalid or expired bearer token (`UNAUTHORIZED`)         |
+| `403`       | Token role cannot use the route (`FORBIDDEN`)                     |
 | `409`       | Slot no longer available (concurrency conflict)                   |
+| `409`       | Registration email already exists (`EMAIL_TAKEN`)                 |
 | `409`       | Slot cannot be blocked or unblocked (`BOOKED`)                    |
 | `404`       | Slot or booking not found                                         |
 | `422`       | Validation error (Zod)                                            |
@@ -501,6 +504,8 @@ Tracked in **Phase 6 — Authentication & Access Control**. SMS, webhooks, produ
 
 - JWT-based authentication (Fastify `@fastify/jwt`) — BRE-90
 - Role-based access control (Provider vs Client) — BRE-91
+  - Public: `GET /health`, `POST /auth/login`, `POST /auth/register`, `GET /slots`. `PROVIDER`: `POST /slots/generate`, `PATCH /slots/:id`, `GET /bookings`, `GET /bookings/:id`, `DELETE /bookings/:id`. `CLIENT`: `POST /bookings`, which books the token subject and rejects a body `clientId` (422).
+  - The web keeps the token in an httpOnly `session` cookie. `proxy.ts` verifies it with the same `JWT_SECRET` and sends anyone without a `PROVIDER` token from `/dashboard` to `/login`; Server Actions forward the token so the API still enforces the role.
 - Rate limiting on booking creation (`@fastify/rate-limit`) — BRE-92
 - CORS restricted to the web origin — BRE-93
 

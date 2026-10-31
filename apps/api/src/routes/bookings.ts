@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import { Role } from "@repo/database";
 import {
   ErrorCode,
   apiError,
@@ -8,12 +9,15 @@ import {
   isSlotUnavailableError,
   listBookingsQuerySchema,
 } from "@repo/shared";
+import { requireRole } from "../plugins/jwt.js";
 import { BookingService } from "../services/booking.service.js";
 
 export function registerBookingRoutes(app: FastifyInstance): void {
   const bookingService = new BookingService(app.prisma);
+  const clientOnly = { preHandler: requireRole(Role.CLIENT) };
+  const providerOnly = { preHandler: requireRole(Role.PROVIDER) };
 
-  app.post("/bookings", async (request, reply) => {
+  app.post("/bookings", clientOnly, async (request, reply) => {
     const parsed = createBookingBodySchema.safeParse(request.body);
     if (!parsed.success) {
       return reply.status(422).send(
@@ -24,7 +28,10 @@ export function registerBookingRoutes(app: FastifyInstance): void {
     }
 
     try {
-      const booking = await bookingService.createBooking(parsed.data);
+      const booking = await bookingService.createBooking({
+        slotId: parsed.data.slotId,
+        clientId: request.user.sub,
+      });
       return reply.status(201).send(booking);
     } catch (err) {
       if (isSlotUnavailableError(err)) {
@@ -39,7 +46,7 @@ export function registerBookingRoutes(app: FastifyInstance): void {
     }
   });
 
-  app.get("/bookings", async (request, reply) => {
+  app.get("/bookings", providerOnly, async (request, reply) => {
     const parsed = listBookingsQuerySchema.safeParse(request.query);
     if (!parsed.success) {
       return reply.status(422).send(
@@ -53,7 +60,7 @@ export function registerBookingRoutes(app: FastifyInstance): void {
     return reply.status(200).send(bookings);
   });
 
-  app.get("/bookings/:id", async (request, reply) => {
+  app.get("/bookings/:id", providerOnly, async (request, reply) => {
     const parsed = bookingIdParamsSchema.safeParse(request.params);
     if (!parsed.success) {
       return reply.status(422).send(
@@ -80,7 +87,7 @@ export function registerBookingRoutes(app: FastifyInstance): void {
     }
   });
 
-  app.delete("/bookings/:id", async (request, reply) => {
+  app.delete("/bookings/:id", providerOnly, async (request, reply) => {
     const parsed = bookingIdParamsSchema.safeParse(request.params);
     if (!parsed.success) {
       return reply.status(422).send(

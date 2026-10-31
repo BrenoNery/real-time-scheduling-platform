@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
+import { signOut } from "@/lib/actions/auth";
 
 export const metadata: Metadata = {
   title: "Dashboard",
@@ -25,6 +26,12 @@ export default function DashboardPage() {
           <Link href="/dashboard/bookings">View Bookings →</Link>
         </Button>
       </div>
+
+      <form action={signOut}>
+        <Button type="submit" variant="ghost" size="sm">
+          Sign out
+        </Button>
+      </form>
     </main>
   );
 }

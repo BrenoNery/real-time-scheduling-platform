@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { Role, SlotStatus, prisma } from "@repo/database";
 import type { FastifyInstance } from "fastify";
 import { buildApp } from "../src/app.js";
+import { authHeader } from "./auth-header.js";
 
 const CONCURRENCY = 10;
 const START_DATE = "2032-06-01";
@@ -17,6 +18,7 @@ describe("POST /slots/generate concurrency (BRE-77)", () => {
   let app: FastifyInstance;
   let runId: string;
   let providerId: string;
+  let asProvider: { authorization: string };
   let serviceId: string;
 
   before(async () => {
@@ -31,6 +33,7 @@ describe("POST /slots/generate concurrency (BRE-77)", () => {
       },
     });
     providerId = provider.id;
+    asProvider = authHeader(app, providerId, Role.PROVIDER);
 
     const service = await prisma.service.create({
       data: {
@@ -68,7 +71,7 @@ describe("POST /slots/generate concurrency (BRE-77)", () => {
 
     const responses = await Promise.all(
       Array.from({ length: CONCURRENCY }, () =>
-        app.inject({ method: "POST", url: "/slots/generate", payload }),
+        app.inject({ method: "POST", url: "/slots/generate", headers: asProvider, payload }),
       ),
     );
 

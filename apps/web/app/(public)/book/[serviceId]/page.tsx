@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { SlotStatus } from "@repo/database";
+import { Role, SlotStatus } from "@repo/database";
 
 import { BookingForm } from "@/components/booking/BookingForm";
 import { Button } from "@/components/ui/button";
 import { prisma } from "@/lib/db";
+import { getSession } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -51,6 +52,15 @@ export default async function BookServicePage({ params }: PageProps) {
     },
   });
 
+  const session = await getSession();
+  const client =
+    session?.role === Role.CLIENT
+      ? await prisma.user.findUnique({
+          where: { id: session.sub },
+          select: { name: true, email: true },
+        })
+      : null;
+
   const slotItems = slots.map((slot) => ({
     id: slot.id,
     startsAt: slot.startsAt.toISOString(),
@@ -72,7 +82,12 @@ export default async function BookServicePage({ params }: PageProps) {
       </div>
 
       <section className="rounded-lg border bg-card p-6">
-        <BookingForm serviceId={service.id} serviceName={service.name} slots={slotItems} />
+        <BookingForm
+          serviceId={service.id}
+          serviceName={service.name}
+          slots={slotItems}
+          signedInAs={client ? `${client.name} (${client.email})` : null}
+        />
       </section>
     </main>
   );

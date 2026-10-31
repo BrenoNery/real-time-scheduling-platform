@@ -12,11 +12,13 @@ import {
 import { ErrorCode } from "@repo/shared";
 import type { FastifyInstance } from "fastify";
 import { buildApp } from "../src/app.js";
+import { authHeader } from "./auth-header.js";
 
 describe("Booking API CRUD (BRE-41)", () => {
   let app: FastifyInstance;
   let runId: string;
   let providerId: string;
+  let asProvider: { authorization: string };
   let serviceId: string;
   let slotId: string;
   let conflictSlotId: string;
@@ -36,6 +38,7 @@ describe("Booking API CRUD (BRE-41)", () => {
       },
     });
     providerId = provider.id;
+    asProvider = authHeader(app, providerId, Role.PROVIDER);
 
     const service = await prisma.service.create({
       data: {
@@ -132,7 +135,8 @@ describe("Booking API CRUD (BRE-41)", () => {
     const createRes = await app.inject({
       method: "POST",
       url: "/bookings",
-      payload: { slotId, clientId },
+      headers: authHeader(app, clientId, Role.CLIENT),
+      payload: { slotId },
     });
     assert.equal(createRes.statusCode, 201);
     const created = createRes.json() as {
@@ -155,6 +159,7 @@ describe("Booking API CRUD (BRE-41)", () => {
     const getRes = await app.inject({
       method: "GET",
       url: `/bookings/${created.id}`,
+      headers: asProvider,
     });
     assert.equal(getRes.statusCode, 200);
     const fetched = getRes.json() as {
@@ -170,6 +175,7 @@ describe("Booking API CRUD (BRE-41)", () => {
     const listRes = await app.inject({
       method: "GET",
       url: `/bookings?clientId=${clientId}`,
+      headers: asProvider,
     });
     assert.equal(listRes.statusCode, 200);
     const list = listRes.json() as Array<{ id: string }>;
@@ -178,6 +184,7 @@ describe("Booking API CRUD (BRE-41)", () => {
     const cancelRes = await app.inject({
       method: "DELETE",
       url: `/bookings/${created.id}`,
+      headers: asProvider,
     });
     assert.equal(cancelRes.statusCode, 200);
     const cancelled = cancelRes.json() as {
@@ -212,6 +219,7 @@ describe("Booking API CRUD (BRE-41)", () => {
     const secondCancel = await app.inject({
       method: "DELETE",
       url: `/bookings/${created.id}`,
+      headers: asProvider,
     });
     assert.equal(secondCancel.statusCode, 404);
     const secondBody = secondCancel.json() as {
@@ -225,14 +233,16 @@ describe("Booking API CRUD (BRE-41)", () => {
     const first = await app.inject({
       method: "POST",
       url: "/bookings",
-      payload: { slotId: conflictSlotId, clientId },
+      headers: authHeader(app, clientId, Role.CLIENT),
+      payload: { slotId: conflictSlotId },
     });
     assert.equal(first.statusCode, 201);
 
     const second = await app.inject({
       method: "POST",
       url: "/bookings",
-      payload: { slotId: conflictSlotId, clientId: otherClientId },
+      headers: authHeader(app, otherClientId, Role.CLIENT),
+      payload: { slotId: conflictSlotId },
     });
     assert.equal(second.statusCode, 409);
     const body = second.json() as {
@@ -252,7 +262,8 @@ describe("Booking API CRUD (BRE-41)", () => {
     const first = await app.inject({
       method: "POST",
       url: "/bookings",
-      payload: { slotId: rebookSlotId, clientId },
+      headers: authHeader(app, clientId, Role.CLIENT),
+      payload: { slotId: rebookSlotId },
     });
     assert.equal(first.statusCode, 201);
     const original = first.json() as { id: string };
@@ -260,13 +271,15 @@ describe("Booking API CRUD (BRE-41)", () => {
     const cancelRes = await app.inject({
       method: "DELETE",
       url: `/bookings/${original.id}`,
+      headers: asProvider,
     });
     assert.equal(cancelRes.statusCode, 200);
 
     const rebook = await app.inject({
       method: "POST",
       url: "/bookings",
-      payload: { slotId: rebookSlotId, clientId: otherClientId },
+      headers: authHeader(app, otherClientId, Role.CLIENT),
+      payload: { slotId: rebookSlotId },
     });
     assert.equal(rebook.statusCode, 201);
     const rebooked = rebook.json() as {
@@ -300,7 +313,8 @@ describe("Booking API CRUD (BRE-41)", () => {
     const third = await app.inject({
       method: "POST",
       url: "/bookings",
-      payload: { slotId: rebookSlotId, clientId },
+      headers: authHeader(app, clientId, Role.CLIENT),
+      payload: { slotId: rebookSlotId },
     });
     assert.equal(third.statusCode, 409);
     const thirdBody = third.json() as { error: { code: string } };
@@ -313,6 +327,7 @@ describe("Booking API CRUD (BRE-41)", () => {
     const getRes = await app.inject({
       method: "GET",
       url: `/bookings/${missingId}`,
+      headers: asProvider,
     });
     assert.equal(getRes.statusCode, 404);
     const getBody = getRes.json() as { error: { code: string } };
@@ -321,6 +336,7 @@ describe("Booking API CRUD (BRE-41)", () => {
     const deleteRes = await app.inject({
       method: "DELETE",
       url: `/bookings/${missingId}`,
+      headers: asProvider,
     });
     assert.equal(deleteRes.statusCode, 404);
     const deleteBody = deleteRes.json() as { error: { code: string } };
@@ -331,7 +347,8 @@ describe("Booking API CRUD (BRE-41)", () => {
     const badBody = await app.inject({
       method: "POST",
       url: "/bookings",
-      payload: { slotId: "not-a-uuid", clientId },
+      headers: authHeader(app, clientId, Role.CLIENT),
+      payload: { slotId: "not-a-uuid" },
     });
     assert.equal(badBody.statusCode, 422);
     const bodyErr = badBody.json() as { error: { code: string } };
@@ -340,6 +357,7 @@ describe("Booking API CRUD (BRE-41)", () => {
     const badParam = await app.inject({
       method: "GET",
       url: "/bookings/not-a-uuid",
+      headers: asProvider,
     });
     assert.equal(badParam.statusCode, 422);
     const paramErr = badParam.json() as { error: { code: string } };
@@ -348,6 +366,7 @@ describe("Booking API CRUD (BRE-41)", () => {
     const badQuery = await app.inject({
       method: "GET",
       url: "/bookings?clientId=not-a-uuid",
+      headers: asProvider,
     });
     assert.equal(badQuery.statusCode, 422);
     const queryErr = badQuery.json() as { error: { code: string } };

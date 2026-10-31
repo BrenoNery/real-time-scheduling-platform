@@ -5,6 +5,7 @@ import { BookingStatus, Role, SlotStatus, prisma } from "@repo/database";
 import { ErrorCode } from "@repo/shared";
 import type { FastifyInstance } from "fastify";
 import { buildApp } from "../src/app.js";
+import { authHeader } from "./auth-header.js";
 
 const CONCURRENCY = 12;
 
@@ -12,6 +13,7 @@ describe("POST /bookings concurrency (BRE-37)", () => {
   let app: FastifyInstance;
   let runId: string;
   let providerId: string;
+  let asProvider: { authorization: string };
   let serviceId: string;
   let availableSlotId: string;
   let bookedSlotId: string;
@@ -30,6 +32,7 @@ describe("POST /bookings concurrency (BRE-37)", () => {
       },
     });
     providerId = provider.id;
+    asProvider = authHeader(app, providerId, Role.PROVIDER);
 
     const service = await prisma.service.create({
       data: {
@@ -133,7 +136,8 @@ describe("POST /bookings concurrency (BRE-37)", () => {
         app.inject({
           method: "POST",
           url: "/bookings",
-          payload: { slotId: availableSlotId, clientId },
+          headers: authHeader(app, clientId, Role.CLIENT),
+          payload: { slotId: availableSlotId },
         }),
       ),
     );
@@ -186,7 +190,8 @@ describe("POST /bookings concurrency (BRE-37)", () => {
     const res = await app.inject({
       method: "POST",
       url: "/bookings",
-      payload: { slotId: missingSlotId, clientId: clientIds[0]! },
+      headers: authHeader(app, clientIds[0]!, Role.CLIENT),
+      payload: { slotId: missingSlotId },
     });
 
     assert.equal(res.statusCode, 409);
@@ -208,7 +213,8 @@ describe("POST /bookings concurrency (BRE-37)", () => {
     const res = await app.inject({
       method: "POST",
       url: "/bookings",
-      payload: { slotId: bookedSlotId, clientId: clientIds[1]! },
+      headers: authHeader(app, clientIds[1]!, Role.CLIENT),
+      payload: { slotId: bookedSlotId },
     });
 
     assert.equal(res.statusCode, 409);
@@ -230,7 +236,8 @@ describe("POST /bookings concurrency (BRE-37)", () => {
     const first = await app.inject({
       method: "POST",
       url: "/bookings",
-      payload: { slotId: rebookSlotId, clientId: clientIds[0]! },
+      headers: authHeader(app, clientIds[0]!, Role.CLIENT),
+      payload: { slotId: rebookSlotId },
     });
     assert.equal(first.statusCode, 201);
     const original = first.json() as { id: string };
@@ -238,6 +245,7 @@ describe("POST /bookings concurrency (BRE-37)", () => {
     const cancelRes = await app.inject({
       method: "DELETE",
       url: `/bookings/${original.id}`,
+      headers: asProvider,
     });
     assert.equal(cancelRes.statusCode, 200);
 
@@ -246,7 +254,8 @@ describe("POST /bookings concurrency (BRE-37)", () => {
         app.inject({
           method: "POST",
           url: "/bookings",
-          payload: { slotId: rebookSlotId, clientId },
+          headers: authHeader(app, clientId, Role.CLIENT),
+          payload: { slotId: rebookSlotId },
         }),
       ),
     );

@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import { Role } from "@repo/database";
 import {
   ErrorCode,
   apiError,
@@ -9,10 +10,12 @@ import {
   slotIdParamsSchema,
   updateSlotBodySchema,
 } from "@repo/shared";
+import { requireRole } from "../plugins/jwt.js";
 import { SlotService } from "../services/slot.service.js";
 
 export function registerSlotRoutes(app: FastifyInstance): void {
   const slotService = new SlotService(app.prisma);
+  const providerOnly = { preHandler: requireRole(Role.PROVIDER) };
 
   app.get("/slots", async (request, reply) => {
     const parsed = listSlotsQuerySchema.safeParse(request.query);
@@ -28,7 +31,7 @@ export function registerSlotRoutes(app: FastifyInstance): void {
     return reply.status(200).send(slots);
   });
 
-  app.post("/slots/generate", async (request, reply) => {
+  app.post("/slots/generate", providerOnly, async (request, reply) => {
     const parsed = generateSlotsBodySchema.safeParse(request.body);
     if (!parsed.success) {
       return reply.status(422).send(
@@ -55,7 +58,7 @@ export function registerSlotRoutes(app: FastifyInstance): void {
     }
   });
 
-  app.patch("/slots/:id", async (request, reply) => {
+  app.patch("/slots/:id", providerOnly, async (request, reply) => {
     const parsedParams = slotIdParamsSchema.safeParse(request.params);
     if (!parsedParams.success) {
       return reply.status(422).send(

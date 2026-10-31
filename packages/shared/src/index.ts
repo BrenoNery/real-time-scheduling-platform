@@ -20,8 +20,8 @@ export {
 } from "./errors.js";
 export type { ApiErrorEnvelope } from "./errors.js";
 
-export { loginBodySchema } from "./auth.js";
-export type { LoginBody } from "./auth.js";
+export { loginBodySchema, registerBodySchema } from "./auth.js";
+export type { LoginBody, RegisterBody } from "./auth.js";
 
 export {
   createBookingBodySchema,
