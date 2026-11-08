@@ -1,4 +1,5 @@
 import Fastify from "fastify";
+import { registerCorsPlugin } from "./plugins/cors.js";
 import { registerJwtPlugin } from "./plugins/jwt.js";
 import { registerPrismaPlugin } from "./plugins/prisma.js";
 import { registerRateLimitPlugin } from "./plugins/rate-limit.js";
@@ -13,6 +14,7 @@ export async function buildApp(options?: { logger?: boolean }) {
     logger: options?.logger ?? true,
   });
 
+  await registerCorsPlugin(app);
   await registerJwtPlugin(app);
   await registerPrismaPlugin(app);
   await registerRateLimitPlugin(app);
