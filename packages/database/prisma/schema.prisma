@@ -43,7 +43,8 @@ model User {
   name         String
   role         Role
   // Self-contained scrypt hash from hashPassword() in src/password.ts; never plaintext.
-  // Nullable until BRE-91: users created by the /book flow have no password and cannot log in.
+  // Nullable only for legacy users from the removed /book flow, who cannot log in.
+  // POST /auth/register and the seed always set it.
   passwordHash String?  @map("password_hash")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")

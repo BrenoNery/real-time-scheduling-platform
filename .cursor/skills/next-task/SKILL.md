@@ -71,6 +71,7 @@ Use Linear MCP tools: `list_issues`, `get_issue`, `list_milestones`, `get_milest
 | Phase 4 — Notifications & Delivery        | BRE-45, BRE-42                         |
 | Phase 5 — Availability & Public Booking   | BRE-76, BRE-77, BRE-78, BRE-79, BRE-80 |
 | Phase 6 — Authentication & Access Control | BRE-90, BRE-91, BRE-92, BRE-93         |
+| Phase 7 — Ownership & Client Self-Service | BRE-108, BRE-109, BRE-110, BRE-111     |
 
 ### 4. Identify Next Priority Task
 
@@ -89,6 +90,7 @@ Phase 3: BRE-38 → BRE-40 → BRE-43
 Phase 4: BRE-45 → BRE-42
 Phase 5: BRE-76 → (BRE-77 ∥ BRE-78) → BRE-79 → BRE-80
 Phase 6: BRE-90 → BRE-91 → BRE-92 → BRE-93
+Phase 7: BRE-108 → BRE-109 → BRE-110 → BRE-111
 ```
 
 Complete the active phase before pulling work from a later phase (unless a later-phase issue is fully unblocked and the user explicitly wants to parallelize).
