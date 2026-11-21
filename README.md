@@ -297,18 +297,18 @@ The following Issues are planned for creation in Linear upon documentation appro
 | 🟢 Low    | Seed data & demo scenarios           | `[Database]` |
 | 🟢 Low    | CI pipeline (lint, test, build)      | `[DevOps]`   |
 
-Phases 1–5 of that roadmap are **complete**, including Phase 5 — Availability & Public Booking (BRE-76, BRE-77, BRE-78, BRE-79, BRE-80).
+Phases 1–6 of that roadmap are **complete**, including Phase 6 — Authentication & Access Control (BRE-90, BRE-91, BRE-92, BRE-93).
 
-The active milestone is **Phase 6 — Authentication & Access Control**:
+The active milestone is **Phase 7 — Ownership & Client Self-Service**:
 
-| Priority  | Issue                              | Context     | Linear |
-| --------- | ---------------------------------- | ----------- | ------ |
-| 🟠 High   | JWT authentication                 | `[Backend]` | BRE-90 |
-| 🟠 High   | Provider and Client access control | `[Backend]` | BRE-91 |
-| 🟡 Medium | Rate limit on booking creation     | `[Backend]` | BRE-92 |
-| 🟡 Medium | Restrict CORS to the web origin    | `[Backend]` | BRE-93 |
+| Priority  | Issue                                                | Context      | Linear  |
+| --------- | ---------------------------------------------------- | ------------ | ------- |
+| 🟠 High   | Scope provider routes to the provider's own services | `[Backend]`  | BRE-109 |
+| 🟡 Medium | Document Phase 7 as the active roadmap               | `[Docs]`     | BRE-108 |
+| 🟡 Medium | Client bookings API: list and cancel own bookings    | `[Backend]`  | BRE-110 |
+| 🟡 Medium | Client /my-bookings page                             | `[Frontend]` | BRE-111 |
 
-BRE-81 stays in the backlog until a published `@prisma/config` depends on `deepmerge-ts` ≥ 8. SMS, webhooks, production deploy, reminder jobs, and `COMPLETED` transitions are not part of this phase.
+BRE-81 stays in the backlog until a published `@prisma/config` depends on `deepmerge-ts` ≥ 8. Password reset or claim, SMS, webhooks, production deploy, reminder jobs, and `COMPLETED` transitions are not part of this phase.
 
 ---
 

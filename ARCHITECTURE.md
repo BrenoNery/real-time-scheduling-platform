@@ -509,13 +509,24 @@ Tracked in **Phase 6 — Authentication & Access Control**. SMS, webhooks, produ
 - Rate limiting on booking creation (`@fastify/rate-limit`) — BRE-92
 - CORS restricted to the web origin — BRE-93
 
+### Ownership & Client Self-Service (Phase 7)
+
+Tracked in **Phase 7 — Ownership & Client Self-Service**. This phase is planned; none of it is implemented yet. Password reset or claim, `REMINDER` jobs, `COMPLETED` transitions, SMS, webhooks, production deploy, and the Prisma 7 upgrade (BRE-81) stay out of this phase.
+
+- Provider ownership scoping — BRE-109. `GET /bookings`, `GET /bookings/:id`, `DELETE /bookings/:id`, `PATCH /slots/:id`, and `POST /slots/generate` are limited to services where `Service.providerId` equals the token `sub`. A resource that belongs to another provider returns 404 `NOT_FOUND`, so its existence is not leaked.
+- Client bookings API — BRE-110. `GET /me/bookings` (`CLIENT`) returns the client's own bookings, newest first, cancelled ones included. `DELETE /bookings/:id` also accepts the owning `CLIENT` through the existing cancellation path (the slot becomes rebookable and the cancellation email job is enqueued). Another client's booking returns 404.
+- Client `/my-bookings` page — BRE-111. SSR page in `apps/web/app/(public)` that cancels through a Server Action. `proxy.ts` sends anyone without a `CLIENT` token to `/login`.
+- BRE-81 stays in the backlog: only Prisma 7.x `@prisma/config` depends on `deepmerge-ts` ≥ 8, and the project is on Prisma 6.19.3, so removing the override requires a major Prisma upgrade.
+
+**Known limitation:** users created by the old `/book` flow have no password and cannot log in. `POST /auth/register` is the only code path that creates users and always sets a password, and the seed always sets passwords for demo users, so no new passwordless users appear. Claiming or resetting those accounts is out of scope.
+
 ---
 
 ## 10. Initial Linear Issues
 
 The following Issues live in the Linear project **[Real-Time Scheduling Platform](https://linear.app/breno-nery/project/real-time-scheduling-platform-8335a3f3ee49)**. Development is organized into **Milestones (phases)** to track progress across the roadmap.
 
-> **Note on numbering:** The Linear team already had prior issues, so live identifiers start at **BRE-33**. The `BRE-1 … BRE-21` labels below are documentation references; the mapping to live Linear IDs is in the phase table.
+> **Note on numbering:** The Linear team already had prior issues, so live identifiers start at **BRE-33**. The `BRE-1 … BRE-25` labels below are documentation references; the mapping to live Linear IDs is in the phase table.
 
 ### Development Phases (Milestones)
 
@@ -527,6 +538,7 @@ The following Issues live in the Linear project **[Real-Time Scheduling Platform
 | **Phase 4 — Notifications & Delivery**        | 2026-09-06 | BRE-45, BRE-42                         | BullMQ email worker, CI pipeline                                |
 | **Phase 5 — Availability & Public Booking**   | 2026-09-20 | BRE-76, BRE-77, BRE-78, BRE-79, BRE-80 | Rebookable cancel, slots API, public `/book`, cancel email, E2E |
 | **Phase 6 — Authentication & Access Control** | 2026-10-18 | BRE-90, BRE-91, BRE-92, BRE-93         | JWT login, Provider/Client access, booking rate limit, CORS     |
+| **Phase 7 — Ownership & Client Self-Service** | 2026-12-06 | BRE-108, BRE-109, BRE-110, BRE-111     | Provider ownership scoping, client bookings API, `/my-bookings` |
 
 ### Doc → Linear ID Mapping
 
@@ -553,6 +565,10 @@ The following Issues live in the Linear project **[Real-Time Scheduling Platform
 | BRE-19  | BRE-91    | Phase 6   |
 | BRE-20  | BRE-92    | Phase 6   |
 | BRE-21  | BRE-93    | Phase 6   |
+| BRE-22  | BRE-108   | Phase 7   |
+| BRE-23  | BRE-109   | Phase 7   |
+| BRE-24  | BRE-110   | Phase 7   |
+| BRE-25  | BRE-111   | Phase 7   |
 
 ---
 
